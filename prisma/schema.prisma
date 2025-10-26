@@ -29,8 +29,15 @@ enum PromotionType {
 
 model User {
   id       Int    @id @default(autoincrement())
-  username String
+  utorid   String
+  name     String
+  birthday DateTime?
+  points  Int     @default(0)
+  createdAt DateTime @default(now())
+  lastLogin DateTime?
+  avatarUrl String?
   password String
-  role    RoleType @default(regular)
+  email    String  @unique
+  role     RoleType @default(regular)
   verified Boolean  @default(false)
 }

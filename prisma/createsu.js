@@ -41,7 +41,7 @@ async function main() {
     } else {
       await prisma.user.create({
         data: {
-          username: utorid,
+          utorid: utorid,
           password: hashed,
           role: "superuser",
           verified: true,
