@@ -22,7 +22,7 @@ async function main() {
 
   try {
     const existing = await prisma.user.findFirst({
-      where: { username: utorid },
+      where: { utorid },
     });
 
     if (existing) {
@@ -41,7 +41,7 @@ async function main() {
     } else {
       await prisma.user.create({
         data: {
-          utorid: utorid,
+          utorid,
           password: hashed,
           role: "superuser",
           verified: true,
