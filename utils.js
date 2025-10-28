@@ -1,4 +1,4 @@
-const EMAIL_FINISH = "@mail.utoronto.ca";
+const EMAIL_FINISH = "utoronto.ca";
 const MAX_NAME_LEN = 50;
 const generalEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

@@ -46,6 +46,48 @@ const registerUser = async (req, res) => {
   }
 };
 
-// const getUsers = async
+const getUsers = async (req, res) => {
+  let { name, role, verified, activated, page, limit } = req.query;
 
-module.exports = { registerUser };
+  try {
+    if (verified !== undefined) {
+      if (verified !== "true" && verified !== "false") {
+        return res
+          .status(400)
+          .json({ message: "Invalid verified value; must be boolean" });
+      } else {
+        verified = verified === "true";
+      }
+    }
+
+    if (activated !== undefined) {
+      if (activated !== "true" && activated !== "false") {
+        return res
+          .status(400)
+          .json({ message: "Invalid activated value; must be boolean" });
+      } else {
+        activated = activated === "true";
+      }
+    }
+
+    page = parseInt(page);
+    limit = parseInt(limit);
+    if (isNaN(page) || page < 1) page = 1;
+    if (isNaN(limit) || limit < 1) limit = 10;
+    const result = await userService.getUsers({
+      name,
+      role,
+      verified,
+      activated,
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 10,
+    });
+
+    return res.status(200).json({ count: result.total, results: result.users });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+module.exports = { registerUser, getUsers };

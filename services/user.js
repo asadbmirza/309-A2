@@ -48,6 +48,37 @@ const userService = {
       },
     });
   },
+  getUsers: async ({
+    name,
+    role,
+    verified,
+    activated,
+    page = 1,
+    limit = 10,
+  }) => {
+    const where = {};
+
+    if (name) where.name = name;
+    if (role) where.role = role;
+    if (verified !== undefined) where.verified = verified;
+    if (activated !== undefined) activated ? where.lastLogin = { not: null } : where.lastLogin = null;
+
+    const users = await prisma.user.findMany({
+      where,
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    const total = users?.length || 0;
+
+    return {
+      users,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    };
+  },
 };
 
 module.exports = { userService };
