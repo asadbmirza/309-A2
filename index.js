@@ -26,7 +26,7 @@ app.use(express.json());
 
 // ADD YOUR WORK HERE 
 const usersRouter = require('./routes'); 
-app.use('/users', usersRouter); // Todo: add middleware for auth when needed
+app.use('/users', usersRouter);
 
 const server = app.listen(port, () => {
     console.log(`Server running on port ${port}`);
