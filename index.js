@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 'use strict';
 
 const port = (() => {
@@ -24,7 +25,8 @@ const app = express();
 app.use(express.json());
 
 // ADD YOUR WORK HERE 
-
+const usersRouter = require('./routes'); 
+app.use('/users', usersRouter); // Todo: add middleware for auth when needed
 
 const server = app.listen(port, () => {
     console.log(`Server running on port ${port}`);

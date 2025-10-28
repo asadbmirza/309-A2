@@ -28,16 +28,26 @@ enum PromotionType {
 }
 
 model User {
-  id       Int    @id @default(autoincrement())
-  utorid   String @unique
-  name     String?
-  birthday DateTime?
-  points  Int     @default(0)
+  id         Int          @id @default(autoincrement())
+  utorid     String       @unique
+  name       String?
+  birthday   DateTime?
+  points     Int          @default(0)
+  createdAt  DateTime     @default(now())
+  lastLogin  DateTime?
+  avatarUrl  String?
+  password   String?
+  email      String?      @unique
+  role       RoleType     @default(regular)
+  verified   Boolean      @default(false)
+  ResetToken ResetToken[]
+}
+
+model ResetToken {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  token     String   @unique
   createdAt DateTime @default(now())
-  lastLogin DateTime?
-  avatarUrl String?
-  password String
-  email    String?  @unique
-  role     RoleType @default(regular)
-  verified Boolean  @default(false)
+  expiresAt DateTime
 }
