@@ -1,6 +1,7 @@
 const { userService } = require("../services/user");
 const { tokenService } = require("../services/token");
-const { ROLE_ENUM, roleHasClearance } = require("../constants");
+const { roleHasClearance } = require("../constants");
+const { RoleType } = require("@prisma/client");
 
 const registerUser = async (req, res) => {
   const { utorid, name, email } = req.body;
@@ -93,15 +94,15 @@ const getUsers = async (req, res) => {
 
 const getUserById = async (req, res) => {
   const { id } = req.params;
-  const role = req?.auth?.role ? req.auth.role : ROLE_ENUM.manager;
+  const role = req?.auth?.role ? req.auth.role : RoleType.manager;
   try {
-    if (role === ROLE_ENUM.cashier) {
+    if (role === RoleType.cashier) {
       const user = await userService.cashierFindUserById(parseInt(id));
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
       return res.status(200).json(user);
-    } else if (roleHasClearance(role, ROLE_ENUM.manager)) {
+    } else if (roleHasClearance(role, RoleType.manager)) {
       const user = await userService.managerFindUserById(parseInt(id));
       if (!user) {
         return res.status(404).json({ message: "User not found" });

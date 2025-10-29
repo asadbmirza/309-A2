@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+const { authRouter, userRouter } = require('./routes');
+const { authenticateJWT } = require('./middleware/auth');
 
 'use strict';
 
@@ -24,9 +26,9 @@ const app = express();
 
 app.use(express.json());
 
-// ADD YOUR WORK HERE 
-const usersRouter = require('./routes'); 
-app.use('/users', usersRouter);
+// ADD YOUR WORK HERE
+app.use('/users', authenticateJWT, userRouter);
+app.use('/auth', authRouter);
 
 const server = app.listen(port, () => {
     console.log(`Server running on port ${port}`);

@@ -1,13 +1,13 @@
-const ROLES = ["regular", "cashier", "manager", "superuser"]; // ranked by privilege
-const ROLE_ENUM = {
-  regular: "regular",
-  cashier: "cashier",
-  manager: "manager",
-  superuser: "superuser",
+const { RoleType } = require("@prisma/client");
+const ROLES = [
+  RoleType.regular,
+  RoleType.cashier,
+  RoleType.manager,
+  RoleType.superuser,
+]; // ranked by privilege
+
+const roleHasClearance = (userRole, requiredRole) => {
+  return ROLES.indexOf(userRole) >= ROLES.indexOf(requiredRole);
 };
 
-function roleHasClearance(userRole, requiredRole) {
-  return ROLES.indexOf(userRole) >= ROLES.indexOf(requiredRole);
-}
-
-module.exports = { ROLES, ROLE_ENUM, roleHasClearance };
+module.exports = { ROLES, roleHasClearance };
