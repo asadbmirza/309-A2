@@ -71,6 +71,71 @@ async function main() {
     await prisma.resetToken.create({ data: rt });
   }
 
+  // --- PROMOTIONS ---
+  const promotionsData = [
+    {
+      name: "Start of Summer Celebration",
+      type: "automatic",
+      startTime: new Date("2025-06-01T09:00:00Z"),
+      endTime: new Date("2025-06-07T23:59:59Z"),
+      minSpending: 50,
+      rate: 0.01, // 1 extra point per $1 spent
+      points: 0,
+    },
+    {
+      name: "Buy a Pack of Pepsi",
+      type: "onetime",
+      startTime: new Date("2025-07-10T00:00:00Z"),
+      endTime: new Date("2025-07-20T23:59:59Z"),
+      minSpending: null,
+      rate: null,
+      points: 20,
+    },
+    {
+      name: "Back to School Bonus",
+      type: "automatic",
+      startTime: new Date("2025-09-01T00:00:00Z"),
+      endTime: new Date("2025-09-10T23:59:59Z"),
+      minSpending: 30,
+      rate: 0.05, // 5% bonus points
+      points: 0,
+    },
+    {
+      name: "One-Time Signup Gift",
+      type: "onetime",
+      startTime: new Date("2025-01-01T00:00:00Z"),
+      endTime: new Date("2025-12-31T23:59:59Z"),
+      minSpending: null,
+      rate: null,
+      points: 100,
+    },
+  ];
+
+  const promotions = [];
+  for (const promo of promotionsData) {
+    const created = await prisma.promotion.create({ data: promo });
+    promotions.push(created);
+  }
+
+  // --- USER ↔ PROMOTION RELATIONS ---
+  await prisma.user.update({
+    where: { utorid: "asadmir" },
+    data: {
+      promotions: {
+        connect: [{ id: promotions[0].id }, { id: promotions[3].id }],
+      },
+    },
+  });
+
+  await prisma.user.update({
+    where: { utorid: "johndoe" },
+    data: {
+      promotions: {
+        connect: [{ id: promotions[1].id }, { id: promotions[2].id }],
+      },
+    },
+  });
+
   console.log("Seeding complete!");
 }
 

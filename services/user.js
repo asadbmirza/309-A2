@@ -36,6 +36,27 @@ const userService = {
       where: { OR: [{ utorid }, { email }] },
     });
   },
+  cashierFindUserById: async (id) => {
+    return prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        utorid: true,
+        name: true,
+        points: true,
+        verified: true,
+        promotions: {
+          select: {
+            id: true,
+            name: true,
+            minSpending: true,
+            rate: true,
+            points: true,
+          },
+        },
+      },
+    });
+  },
 
   createBaseUser: async ({ utorid, name, email }) => {
     return prisma.user.create({
@@ -61,7 +82,8 @@ const userService = {
     if (name) where.name = name;
     if (role) where.role = role;
     if (verified !== undefined) where.verified = verified;
-    if (activated !== undefined) activated ? where.lastLogin = { not: null } : where.lastLogin = null;
+    if (activated !== undefined)
+      activated ? (where.lastLogin = { not: null }) : (where.lastLogin = null);
 
     const users = await prisma.user.findMany({
       where,
