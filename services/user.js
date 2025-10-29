@@ -34,6 +34,19 @@ const userService = {
   findUserByUtoridOrEmail: async (utorid, email) => {
     return prisma.user.findFirst({
       where: { OR: [{ utorid }, { email }] },
+      select: {
+        id: true,
+        utorid: true,
+        name: true,
+        email: true,
+        points: true,
+        verified: true,
+        birthday: true,
+        createdAt: true,
+        lastLogin: true,
+        avatarUrl: true,
+        role: true,
+      },
     });
   },
   cashierFindUserById: async (id) => {
@@ -45,6 +58,34 @@ const userService = {
         name: true,
         points: true,
         verified: true,
+        promotions: {
+          select: {
+            id: true,
+            name: true,
+            minSpending: true,
+            rate: true,
+            points: true,
+          },
+        },
+      },
+    });
+  },
+
+  managerFindUserById: async (id) => {
+    return prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        utorid: true,
+        name: true,
+        email: true,
+        points: true,
+        verified: true,
+        birthday: true,
+        createdAt: true,
+        lastLogin: true,
+        avatarUrl: true,
+        role: true,
         promotions: {
           select: {
             id: true,

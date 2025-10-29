@@ -1,7 +1,7 @@
 const donenv = require('dotenv');
 donenv.config();
 const jwt = require('jsonwebtoken');
-const { ROLES } = require('../constants');
+const { roleHasClearance } = require('../constants');
 
 const authenticateJWT = async (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -23,7 +23,7 @@ const authenticateJWT = async (req, res, next) => {
 const verifyUserRole = (requiredRole) => {
     return (req, res, next) => {
         const userRole = req.auth.role;
-        if (ROLES.indexOf(userRole) >= ROLES.indexOf(requiredRole)) {
+        if (roleHasClearance(userRole, requiredRole)) {
             next();
         } else {
             res.sendStatus(403);
