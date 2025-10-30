@@ -10,4 +10,11 @@ const roleHasClearance = (userRole, requiredRole) => {
   return ROLES.indexOf(userRole) >= ROLES.indexOf(requiredRole);
 };
 
+const USER_SCHEMA = {
+  id: "number",
+  utorid: "string",
+  name: "string",
+  email: "string",
+}
+
 module.exports = { ROLES, roleHasClearance };

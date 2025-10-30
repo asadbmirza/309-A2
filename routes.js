@@ -7,11 +7,35 @@ const { verifyUserRole } = require("./middleware/auth");
 const { RoleType } = require("@prisma/client");
 
 // user routes
-userRouter.post("/", verifyUserRole(RoleType.cashier), userController.registerUser); //TODO: add clearance check middleware when needed
-userRouter.get("/", verifyUserRole(RoleType.manager), userController.getUsers); //TODO: add clearance check middleware when needed
-userRouter.get("/:id", verifyUserRole(RoleType.cashier), userController.getUserById); //TODO: add clearance check middleware when needed
+userRouter.post(
+  "/",
+  verifyUserRole(RoleType.cashier),
+  userController.registerUser
+);
+userRouter.get("/", verifyUserRole(RoleType.manager), userController.getUsers);
+userRouter.get(
+  "/:id",
+  verifyUserRole(RoleType.cashier),
+  userController.getUserById
+);
+userRouter.patch(
+    "/:id",
+    verifyUserRole(RoleType.manager),
+    userController.updateUserStatusFields
+);
+
+userRouter.all("/", (req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
+userRouter.all("/:id", (req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
 
 // auth routes
 authRouter.post("/tokens", authController.authenticateUser);
+
+authRouter.all("/tokens", (req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
 
 module.exports = { userRouter, authRouter };

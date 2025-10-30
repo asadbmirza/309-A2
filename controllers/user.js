@@ -2,6 +2,7 @@ const { userService } = require("../services/user");
 const { tokenService } = require("../services/token");
 const { roleHasClearance } = require("../constants");
 const { RoleType } = require("@prisma/client");
+const { ROLES } = require("../constants");
 
 const registerUser = async (req, res) => {
   const { utorid, name, email } = req.body;
@@ -115,4 +116,85 @@ const getUserById = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, getUsers, getUserById };
+const updateUserStatusFields = async (req, res) => {
+  const {
+    email: updatedEmail,
+    verified: updatedVerified,
+    suspicious: updatedSuspicious,
+    role: updatedRole,
+  } = req.body;
+  let types = {
+    email: "string",
+    verified: "boolean",
+    suspicious: "boolean",
+    role: "enum",
+  };
+  for (const key in req.body) {
+    if (!Object.keys(types).includes(key)) {
+      return res
+        .status(400)
+        .json({ message: `Invalid field in request body: ${key}` });
+    } else if (key === "role" && !ROLES.includes(req.body[key])) {
+      return res
+        .status(400)
+        .json({ message: `Invalid value for field role: ${req.body[key]}` });
+    } else if (typeof req.body[key] !== types[key] && types[key] !== "enum") {
+      return res.status(400).json({
+        message: `Invalid type for field ${key}: expected ${types[key]}`,
+      });
+    }
+  }
+  const { id: stringId } = req.params;
+  const id = parseInt(stringId);
+  const authRole = req?.auth?.role ? req.auth.role : RoleType.manager;
+
+  try {
+    const user = await userService.managerFindUserById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    if (updatedVerified === false) {
+      return res.status(400).json({
+        message: "Invalid operation. Users cannot be unverified.",
+      });
+    }
+    if (authRole === RoleType.manager) {
+      if (
+        updatedRole == RoleType.manager ||
+        updatedRole == RoleType.superuser
+      ) {
+        return res.status(400).json({
+          message:
+            "Invalid role. Managers can only assign roles 'cashier' or 'regular'.",
+        });
+      } else if (
+        updatedRole == RoleType.cashier &&
+        user.role == RoleType.regular &&
+        (await userService.isUserSuspicious(id))
+      ) {
+        return res.status(400).json({
+          message:
+            "Invalid role. Cashiers cannot be assigned to suspicious users.",
+        });
+      }
+    }
+    const updatedUser = await userService.updateUserStatusFields(user.id, {
+      verified: updatedVerified,
+      suspicious: updatedSuspicious,
+      role: updatedRole,
+      email: updatedEmail,
+    });
+
+    return res.status(200).json({ ...updatedUser });
+  } catch (error) {
+    console.error("Error updating user status:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+module.exports = {
+  registerUser,
+  getUsers,
+  getUserById,
+  updateUserStatusFields,
+};

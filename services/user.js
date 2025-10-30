@@ -31,6 +31,14 @@ const userService = {
     return { valid: true, utorid, name, email };
   },
 
+  isUserSuspicious: async (id) => {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { suspicious: true },
+    });
+    return user?.suspicious || false;
+  },
+
   findUserByUtoridOrEmail: async (utorid, email) => {
     return prisma.user.findFirst({
       where: { OR: [{ utorid }, { email }] },
@@ -141,6 +149,25 @@ const userService = {
       total,
       totalPages: Math.ceil(total / limit),
     };
+  },
+  updateUserStatusFields: async (id, { email, verified, suspicious, role }) => {
+    const updateFields = {};
+    if (email !== undefined) updateFields.email = email;
+    if (verified !== undefined) updateFields.verified = verified;
+    if (suspicious !== undefined) updateFields.suspicious = suspicious;
+    if (role !== undefined) updateFields.role = role;
+
+    const user = await prisma.user.update({
+      where: { id },
+      data: updateFields,
+    });
+    const ret = {id: user.id, utorid: user.utorid};
+    if (email !== undefined) ret.email = user.email;
+    if (verified !== undefined) ret.verified = user.verified;
+    if (suspicious !== undefined) ret.suspicious = user.suspicious;
+    if (role !== undefined) ret.role = user.role;
+
+    return ret;
   },
 };
 
