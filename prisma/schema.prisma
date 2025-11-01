@@ -43,6 +43,10 @@ model User {
   suspicious Boolean      @default(false)
   promotions Promotion[]  @relation("UserPromotions")
   ResetToken ResetToken[]
+  organizedEvents EventOrganizer[]
+  attendingEvents EventGuest[]
+  createdTransactions Transaction[] @relation("CreatedTransactions")
+  transactions Transaction[]        @relation("UserTransactions")
 }
 
 model ResetToken {
@@ -65,4 +69,68 @@ model Promotion {
   points      Int?
   createdAt   DateTime      @default(now())
   users       User[]        @relation("UserPromotions")
+  transactions Transaction[]
+}
+
+model Event {
+  id             Int              @id @default(autoincrement())
+  name           String
+  description    String
+  location       String
+  startTime      DateTime
+  endTime        DateTime
+  capacity       Int?
+  points         Int
+  pointsRemain   Int              @default(0)
+  pointsAwarded  Int              @default(0)
+  published      Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organizers     EventOrganizer[]
+  guests         EventGuest[]
+  transactions   Transaction[]
+}
+
+model EventOrganizer {
+  id       Int   @id @default(autoincrement())
+  event    Event @relation(fields: [eventId], references: [id])
+  eventId  Int
+  user     User  @relation(fields: [userId], references: [id])
+  userId   Int
+
+  @@unique([eventId, userId])
+}
+
+model EventGuest {
+  id       Int   @id @default(autoincrement())
+  event    Event @relation(fields: [eventId], references: [id])
+  eventId  Int
+  user     User  @relation(fields: [userId], references: [id])
+  userId   Int
+
+  @@unique([eventId, userId])
+}
+
+model Transaction {
+  id           Int              @id @default(autoincrement())
+  type         TransactionType
+  spent        Float?
+  amount       Int?             // points gained/lost
+  remark       String?
+  suspicious   Boolean?         @default(false)
+  processed    Boolean?         @default(false)
+  createdAt    DateTime         @default(now())
+
+  createdBy    User             @relation("CreatedTransactions", fields: [createdById], references: [id])
+  createdById  Int
+
+  user         User?            @relation("UserTransactions", fields: [userId], references: [id])
+  userId       Int?
+
+  event        Event?           @relation(fields: [eventId], references: [id])
+  eventId      Int?
+
+  promotion    Promotion?       @relation(fields: [promotionId], references: [id])
+  promotionId  Int?
 }
