@@ -5,6 +5,7 @@ const userRouter = express.Router();
 const authRouter = express.Router();
 const { verifyUserRole } = require("./middleware/auth");
 const { RoleType } = require("@prisma/client");
+const { upload } = require("./middleware/upload");
 
 // user routes
 userRouter.post(
@@ -13,15 +14,21 @@ userRouter.post(
   userController.registerUser
 );
 userRouter.get("/", verifyUserRole(RoleType.manager), userController.getUsers);
+userRouter.patch(
+  "/me",
+  verifyUserRole(RoleType.regular),
+  upload.single("avatar"),
+  userController.updatePersonalProfile
+);
 userRouter.get(
   "/:id",
   verifyUserRole(RoleType.cashier),
   userController.getUserById
 );
 userRouter.patch(
-    "/:id",
-    verifyUserRole(RoleType.manager),
-    userController.updateUserStatusFields
+  "/:id",
+  verifyUserRole(RoleType.manager),
+  userController.updateUserStatusFields
 );
 
 userRouter.all("/", (req, res) => {
