@@ -75,6 +75,7 @@ async function main() {
   const promotionsData = [
     {
       name: "Start of Summer Celebration",
+      description: "Celebrate the start of summer with bonus points!",
       type: "automatic",
       startTime: new Date("2025-06-01T09:00:00Z"),
       endTime: new Date("2025-06-07T23:59:59Z"),
@@ -84,6 +85,7 @@ async function main() {
     },
     {
       name: "Buy a Pack of Pepsi",
+      description: "Get bonus points for purchasing a pack of Pepsi.",
       type: "onetime",
       startTime: new Date("2025-07-10T00:00:00Z"),
       endTime: new Date("2025-07-20T23:59:59Z"),
@@ -93,6 +95,7 @@ async function main() {
     },
     {
       name: "Back to School Bonus",
+      description: "Earn extra points as you prepare for the new school year!",
       type: "automatic",
       startTime: new Date("2025-09-01T00:00:00Z"),
       endTime: new Date("2025-09-10T23:59:59Z"),
@@ -102,6 +105,7 @@ async function main() {
     },
     {
       name: "One-Time Signup Gift",
+      description: "Welcome gift for new users signing up!",
       type: "onetime",
       startTime: new Date("2025-01-01T00:00:00Z"),
       endTime: new Date("2025-12-31T23:59:59Z"),
