@@ -22,9 +22,13 @@ const port = (() => {
 })();
 
 const express = require("express");
+const path = require("path");
+const multer = require("multer");
 const app = express();
 
 app.use(express.json());
+
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ADD YOUR WORK HERE
 app.use('/users', authenticateJWT, userRouter);
@@ -32,7 +36,7 @@ app.use('/auth', authRouter);
 app.use('/events', authenticateJWT, eventsRouter);
 
 const server = app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
 
 server.on('error', (err) => {

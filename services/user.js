@@ -1,34 +1,30 @@
 const { PrismaClient } = require("@prisma/client");
-const {
-  stringLengthValid,
-  MAX_NAME_LEN,
-  EMAIL_FINISH,
-  generalEmailRegex,
-} = require("../utils");
+const { validateService } = require("./validate_service");
+const bcrypt = require("bcrypt");
 
 const prisma = new PrismaClient();
 
 const userService = {
   validateNewUser: ({ utorid, name, email }) => {
-    utorid = utorid?.trim();
-    name = name?.trim();
-    email = email?.trim().toLowerCase();
-
-    if (!utorid || !name || !email) {
-      return { valid: false, message: "Missing required fields" };
+    const validUtorid = validateService.validateUtorid(utorid);
+    const validName = validateService.validateName(name);
+    const validEmail = validateService.validateEmail(email);
+    if (!validUtorid.valid) {
+      return { valid: false, message: validUtorid.message };
+    }
+    if (!validName.valid) {
+      return { valid: false, message: validName.message };
+    }
+    if (!validEmail.valid) {
+      return { valid: false, message: validEmail.message };
     }
 
-    if (
-      !stringLengthValid(utorid, 7, 8) ||
-      !stringLengthValid(name, 1, MAX_NAME_LEN) ||
-      email.length === 0 ||
-      !email.endsWith(EMAIL_FINISH) ||
-      !generalEmailRegex.test(email)
-    ) {
-      return { valid: false, message: "Invalid input" };
-    }
-
-    return { valid: true, utorid, name, email };
+    return {
+      valid: true,
+      utorid: validUtorid.utorid,
+      name: validName.name,
+      email: validEmail.email,
+    };
   },
 
   isUserSuspicious: async (id) => {
@@ -54,6 +50,24 @@ const userService = {
         lastLogin: true,
         avatarUrl: true,
         role: true,
+      },
+    });
+  },
+  findUserByUtorid: async (utorid) => {
+    return prisma.user.findUnique({
+      where: { utorid },
+      select: {
+        id: true,
+        utorid: true,
+      },
+    });
+  },
+  findUserByEmail: async (email) => {
+    return prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        utorid: true,
       },
     });
   },
@@ -161,13 +175,66 @@ const userService = {
       where: { id },
       data: updateFields,
     });
-    const ret = {id: user.id, utorid: user.utorid};
+    const ret = { id: user.id, utorid: user.utorid };
     if (email !== undefined) ret.email = user.email;
     if (verified !== undefined) ret.verified = user.verified;
     if (suspicious !== undefined) ret.suspicious = user.suspicious;
     if (role !== undefined) ret.role = user.role;
 
     return ret;
+  },
+
+  updateUserProfile: async (id, { name, email, birthday, avatarUrl }) => {
+    const updateFields = {};
+    if (name !== undefined) updateFields.name = name;
+    if (email !== undefined) updateFields.email = email;
+    if (birthday !== undefined) {
+      updateFields.birthday = new Date(birthday);
+    }
+    if (avatarUrl !== undefined) updateFields.avatarUrl = avatarUrl;
+
+    const user = await prisma.user.update({
+      where: { id },
+      data: updateFields,
+      select: {
+        id: true,
+        utorid: true,
+        name: true,
+        email: true,
+        birthday: true,
+        role: true,
+        points: true,
+        createdAt: true,
+        lastLogin: true,
+        verified: true,
+        avatarUrl: true,
+      },
+    });
+
+    return user;
+  },
+
+  verifyUserPassword: async (utorid, password) => {
+    const user = await prisma.user.findUnique({
+      where: { utorid },
+      select: { password: true },
+    });
+
+    if (!user) return false;
+
+    const isMatch = bcrypt.compare(password, user.password);
+    return isMatch;
+  },
+
+  updateUserPassword: async (utorid, newPassword) => {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const user = await prisma.user.update({
+      where: { utorid },
+      data: { password: hashedPassword },
+      select: { id: true, utorid: true },
+    });
+
+    return { id: user.id, utorid: user.utorid };
   },
 };
 

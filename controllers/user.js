@@ -1,5 +1,6 @@
 const { userService } = require("../services/user");
 const { tokenService } = require("../services/token");
+const { validateService } = require("../services/validate_service");
 const { roleHasClearance } = require("../constants");
 const { RoleType } = require("@prisma/client");
 const { ROLES } = require("../constants");
@@ -13,7 +14,7 @@ const registerUser = async (req, res) => {
     utorid: trimmedUtorid,
     name: trimmedName,
     email: normalizedEmail,
-  } = userService.validateNewUser({ utorid, name, email });
+  } = validateService.validateNewUser({ utorid, name, email });
 
   if (!valid) return res.status(400).json({ message });
 
@@ -118,32 +119,65 @@ const getUserById = async (req, res) => {
 
 const updateUserStatusFields = async (req, res) => {
   const {
-    email: updatedEmail,
-    verified: updatedVerified,
-    suspicious: updatedSuspicious,
-    role: updatedRole,
+    email: newEmail,
+    verified: newVerified,
+    suspicious: newSuspicious,
+    role: newRole,
   } = req.body;
-  let types = {
-    email: "string",
-    verified: "boolean",
-    suspicious: "boolean",
-    role: "enum",
-  };
-  for (const key in req.body) {
-    if (!Object.keys(types).includes(key)) {
-      return res
-        .status(400)
-        .json({ message: `Invalid field in request body: ${key}` });
-    } else if (key === "role" && !ROLES.includes(req.body[key])) {
-      return res
-        .status(400)
-        .json({ message: `Invalid value for field role: ${req.body[key]}` });
-    } else if (typeof req.body[key] !== types[key] && types[key] !== "enum") {
-      return res.status(400).json({
-        message: `Invalid type for field ${key}: expected ${types[key]}`,
-      });
-    }
+
+  const { valid: validObjKeys, message: objKeysMessage } =
+    validateService.validateObjHasCorrectKeys(req.body, [
+      "email",
+      "verified",
+      "suspicious",
+      "role",
+    ]);
+  if (!validObjKeys) return res.status(400).json({ message: objKeysMessage });
+
+  let updatedEmail, updatedVerified, updatedSuspicious, updatedRole;
+
+  if (newEmail !== undefined) {
+    const {
+      valid: validEmail,
+      message: emailMessage,
+      email: validatedEmail,
+    } = validateService.validateEmail(newEmail);
+    if (!validEmail) return res.status(400).json({ message: emailMessage });
+    updatedEmail = validatedEmail;
   }
+
+  if (newVerified !== undefined) {
+    const {
+      valid: validVerified,
+      message: verifiedMessage,
+      verified: validatedVerified,
+    } = validateService.validateVerified(newVerified);
+    if (!validVerified)
+      return res.status(400).json({ message: verifiedMessage });
+    updatedVerified = validatedVerified;
+  }
+
+  if (newSuspicious !== undefined) {
+    const {
+      valid: validSuspicious,
+      message: suspiciousMessage,
+      suspicious: validatedSuspicious,
+    } = validateService.validateSuspicious(newSuspicious);
+    if (!validSuspicious)
+      return res.status(400).json({ message: suspiciousMessage });
+    updatedSuspicious = validatedSuspicious;
+  }
+
+  if (newRole !== undefined) {
+    const {
+      valid: validRole,
+      message: roleMessage,
+      role: validatedRole,
+    } = validateService.validateRole(newRole);
+    if (!validRole) return res.status(400).json({ message: roleMessage });
+    updatedRole = validatedRole;
+  }
+
   const { id: stringId } = req.params;
   const id = parseInt(stringId);
   const authRole = req?.auth?.role ? req.auth.role : RoleType.manager;
@@ -153,31 +187,44 @@ const updateUserStatusFields = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+
     if (updatedVerified === false) {
       return res.status(400).json({
         message: "Invalid operation. Users cannot be unverified.",
       });
     }
+
     if (authRole === RoleType.manager) {
       if (
-        updatedRole == RoleType.manager ||
-        updatedRole == RoleType.superuser
+        updatedRole === RoleType.manager ||
+        updatedRole === RoleType.superuser
       ) {
         return res.status(400).json({
           message:
             "Invalid role. Managers can only assign roles 'cashier' or 'regular'.",
         });
       } else if (
-        updatedRole == RoleType.cashier &&
-        user.role == RoleType.regular &&
-        (await userService.isUserSuspicious(id))
+        updatedRole === RoleType.cashier &&
+        user.role === RoleType.regular
       ) {
-        return res.status(400).json({
-          message:
-            "Invalid role. Cashiers cannot be assigned to suspicious users.",
-        });
+        const finalSuspicious =
+          updatedSuspicious !== undefined ? updatedSuspicious : user.suspicious;
+        if (finalSuspicious) {
+          return res.status(400).json({
+            message:
+              "Invalid role. Cashiers cannot be assigned to suspicious users.",
+          });
+        }
       }
     }
+
+    if (updatedEmail !== undefined) {
+      const existingUser = await userService.findUserByEmail(updatedEmail);
+      if (existingUser && existingUser.id !== id) {
+        return res.status(409).json({ message: "Email already in use" });
+      }
+    }
+
     const updatedUser = await userService.updateUserStatusFields(user.id, {
       verified: updatedVerified,
       suspicious: updatedSuspicious,
@@ -185,9 +232,115 @@ const updateUserStatusFields = async (req, res) => {
       email: updatedEmail,
     });
 
-    return res.status(200).json({ ...updatedUser });
+    return res.status(200).json(updatedUser);
   } catch (error) {
     console.error("Error updating user status:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+const updatePersonalProfile = async (req, res) => {
+  const userId = req.userId;
+  const { name: newName, email: newEmail, birthday: newBirthday } = req.body;
+  const updatedAvatar = req.file ? `/uploads/${req.file.filename}` : undefined;
+
+  const { valid: validObjKeys, message: objKeysMessage } =
+    validateService.validateObjHasCorrectKeys(req.body, [
+      "name",
+      "email",
+      "birthday",
+    ]);
+  if (!validObjKeys) return res.status(400).json({ message: objKeysMessage });
+
+  let updatedName, updatedEmail, updatedBirthday;
+
+  if (newName !== undefined) {
+    const {
+      valid: validName,
+      message: nameMessage,
+      name: validatedName,
+    } = validateService.validateName(newName);
+    if (!validName) return res.status(400).json({ message: nameMessage });
+    updatedName = validatedName;
+  }
+
+  if (newEmail !== undefined) {
+    const {
+      valid: validEmail,
+      message: emailMessage,
+      email: validatedEmail,
+    } = validateService.validateEmail(newEmail);
+    if (!validEmail) return res.status(400).json({ message: emailMessage });
+    updatedEmail = validatedEmail;
+  }
+
+  if (newBirthday !== undefined) {
+    const {
+      valid: validBirthday,
+      message: birthdayMessage,
+      birthday: validatedBirthday,
+    } = validateService.validateBirthday(newBirthday);
+    if (!validBirthday)
+      return res.status(400).json({ message: birthdayMessage });
+    updatedBirthday = validatedBirthday;
+  }
+
+  try {
+    if (updatedEmail !== undefined) {
+      const existingUser = await userService.findUserByEmail(updatedEmail);
+      if (existingUser && existingUser.id !== userId) {
+        return res.status(409).json({ message: "Email already in use" });
+      }
+    }
+
+    const updatedUser = await userService.updateUserProfile(userId, {
+      name: updatedName,
+      email: updatedEmail,
+      birthday: updatedBirthday,
+      avatarUrl: updatedAvatar,
+    });
+
+    return res.status(200).json(updatedUser);
+  } catch (error) {
+    console.error("Error updating personal profile:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+const updatePersonalPassword = async (req, res) => {
+  const requiredKeys = ["old", "new"];
+  const { valid: corObjValid, message: corObjMsg } =
+    validateService.validateObjHasCorrectKeys(req.body, requiredKeys);
+  if (!corObjValid) return res.status(400).json({ message: corObjMsg });
+
+  const { obj: reqObjValid, message: reqObjMsg } =
+    validateService.validateObjHasRequiredKeys(req.body, requiredKeys);
+  if (!reqObjValid) return res.status(400).json({ message: reqObjMsg });
+
+  const utorid = req.utorid;
+  const { old: oldPassword, new: potentialPassword } = req.body;
+  const { valid: validPassword, message: passwordMessage, password: newPassword } =
+    validateService.validatePassword(potentialPassword);
+  if (!validPassword) return res.status(400).json({ message: passwordMessage });
+
+  try {
+    const verifyPassword = await userService.verifyUserPassword(
+      utorid,
+      oldPassword
+    );
+
+    if (!verifyPassword) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    await userService.updateUserPassword(
+      utorid,
+      newPassword
+    );
+
+    return res.status(200).json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Error updating password:", error);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
@@ -197,4 +350,6 @@ module.exports = {
   getUsers,
   getUserById,
   updateUserStatusFields,
+  updatePersonalProfile,
+  updatePersonalPassword,
 };

@@ -1,15 +1,15 @@
-const {PrismaClient} = require('@prisma/client');
+const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
-const { v4: uuidv4 } =  require("uuid");
+const { v4: uuidv4 } = require("uuid");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-dotenv = require('dotenv');
+dotenv = require("dotenv");
 dotenv.config();
 
 const tokenService = {
   generateResetToken: async (userId) => {
     const resetToken = uuidv4();
-    const expiresAt = new Date(Date.now() +  1 * 3600 * 1000); // 1 hour
+    const expiresAt = new Date(Date.now() + 1 * 3600 * 1000); // 1 hour
 
     await prisma.resetToken.create({
       data: {
@@ -35,7 +35,7 @@ const tokenService = {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       return decoded;
     } catch (err) {
-        return null;
+      return null;
     }
   },
   login: async (utorid, password) => {
@@ -50,7 +50,29 @@ const tokenService = {
       return null;
     }
     return user;
-  }
+  },
+
+  findTokenByUtorid: async (utorid) => {
+    const user = await prisma.user.findUnique({
+      where: { utorid },
+      select: { id: true },
+    });
+    if (!user) {
+      return null;
+    }
+    const token = await prisma.resetToken.findFirst({
+      where: { userId: user.id },
+      orderBy: { expiresAt: "desc" },
+      take: 1,
+    });
+    return token;
+  },
+  deleteResetToken: async (id) => {
+    const result = await prisma.resetToken.deleteMany({
+      where: { id },
+    });
+    return result;
+  },
   // flow is login -> generateJwtToken -> verifyJwtToken for protected routes
 };
 
