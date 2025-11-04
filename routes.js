@@ -20,6 +20,11 @@ userRouter.patch(
   upload.single("avatar"),
   userController.updatePersonalProfile
 );
+userRouter.patch(
+  "/me/password",
+  verifyUserRole(RoleType.regular),
+  userController.updatePersonalPassword
+)
 userRouter.get(
   "/:id",
   verifyUserRole(RoleType.cashier),
@@ -31,17 +36,31 @@ userRouter.patch(
   userController.updateUserStatusFields
 );
 
-userRouter.all("/", (req, res) => {
+userRouter.all("/", (_req, res) => {
   res.status(405).json({ message: "Method Not Allowed" });
 });
-userRouter.all("/:id", (req, res) => {
+userRouter.all("/:id", (_req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
+userRouter.all("/me", (_req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
+userRouter.all("/me/password", (_req, res) => {
   res.status(405).json({ message: "Method Not Allowed" });
 });
 
 // auth routes
 authRouter.post("/tokens", authController.authenticateUser);
+authRouter.post("/resets", authController.initiatePasswordReset);
+authRouter.post("/resets/:resetToken", authController.resetPassword);
 
-authRouter.all("/tokens", (req, res) => {
+authRouter.all("/tokens", (_req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
+authRouter.all("/resets", (_req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
+authRouter.all("/resets/:resetToken", (_req, res) => {
   res.status(405).json({ message: "Method Not Allowed" });
 });
 

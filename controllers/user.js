@@ -1,5 +1,6 @@
 const { userService } = require("../services/user");
 const { tokenService } = require("../services/token");
+const { validateService } = require("../services/validate_service");
 const { roleHasClearance } = require("../constants");
 const { RoleType } = require("@prisma/client");
 const { ROLES } = require("../constants");
@@ -13,7 +14,7 @@ const registerUser = async (req, res) => {
     utorid: trimmedUtorid,
     name: trimmedName,
     email: normalizedEmail,
-  } = userService.validateNewUser({ utorid, name, email });
+  } = validateService.validateNewUser({ utorid, name, email });
 
   if (!valid) return res.status(400).json({ message });
 
@@ -125,7 +126,7 @@ const updateUserStatusFields = async (req, res) => {
   } = req.body;
 
   const { valid: validObjKeys, message: objKeysMessage } =
-    userService.validateObjHasCorrectKeys(req.body, [
+    validateService.validateObjHasCorrectKeys(req.body, [
       "email",
       "verified",
       "suspicious",
@@ -140,7 +141,7 @@ const updateUserStatusFields = async (req, res) => {
       valid: validEmail,
       message: emailMessage,
       email: validatedEmail,
-    } = userService.validateEmail(newEmail);
+    } = validateService.validateEmail(newEmail);
     if (!validEmail) return res.status(400).json({ message: emailMessage });
     updatedEmail = validatedEmail;
   }
@@ -150,7 +151,7 @@ const updateUserStatusFields = async (req, res) => {
       valid: validVerified,
       message: verifiedMessage,
       verified: validatedVerified,
-    } = userService.validateVerified(newVerified);
+    } = validateService.validateVerified(newVerified);
     if (!validVerified)
       return res.status(400).json({ message: verifiedMessage });
     updatedVerified = validatedVerified;
@@ -161,7 +162,7 @@ const updateUserStatusFields = async (req, res) => {
       valid: validSuspicious,
       message: suspiciousMessage,
       suspicious: validatedSuspicious,
-    } = userService.validateSuspicious(newSuspicious);
+    } = validateService.validateSuspicious(newSuspicious);
     if (!validSuspicious)
       return res.status(400).json({ message: suspiciousMessage });
     updatedSuspicious = validatedSuspicious;
@@ -172,7 +173,7 @@ const updateUserStatusFields = async (req, res) => {
       valid: validRole,
       message: roleMessage,
       role: validatedRole,
-    } = userService.validateRole(newRole);
+    } = validateService.validateRole(newRole);
     if (!validRole) return res.status(400).json({ message: roleMessage });
     updatedRole = validatedRole;
   }
@@ -244,7 +245,7 @@ const updatePersonalProfile = async (req, res) => {
   const updatedAvatar = req.file ? `/uploads/${req.file.filename}` : undefined;
 
   const { valid: validObjKeys, message: objKeysMessage } =
-    userService.validateObjHasCorrectKeys(req.body, [
+    validateService.validateObjHasCorrectKeys(req.body, [
       "name",
       "email",
       "birthday",
@@ -258,7 +259,7 @@ const updatePersonalProfile = async (req, res) => {
       valid: validName,
       message: nameMessage,
       name: validatedName,
-    } = userService.validateName(newName);
+    } = validateService.validateName(newName);
     if (!validName) return res.status(400).json({ message: nameMessage });
     updatedName = validatedName;
   }
@@ -268,7 +269,7 @@ const updatePersonalProfile = async (req, res) => {
       valid: validEmail,
       message: emailMessage,
       email: validatedEmail,
-    } = userService.validateEmail(newEmail);
+    } = validateService.validateEmail(newEmail);
     if (!validEmail) return res.status(400).json({ message: emailMessage });
     updatedEmail = validatedEmail;
   }
@@ -278,7 +279,7 @@ const updatePersonalProfile = async (req, res) => {
       valid: validBirthday,
       message: birthdayMessage,
       birthday: validatedBirthday,
-    } = userService.validateBirthday(newBirthday);
+    } = validateService.validateBirthday(newBirthday);
     if (!validBirthday)
       return res.status(400).json({ message: birthdayMessage });
     updatedBirthday = validatedBirthday;
@@ -306,10 +307,49 @@ const updatePersonalProfile = async (req, res) => {
   }
 };
 
+const updatePersonalPassword = async (req, res) => {
+  const requiredKeys = ["old", "new"];
+  const { valid: corObjValid, message: corObjMsg } =
+    validateService.validateObjHasCorrectKeys(req.body, requiredKeys);
+  if (!corObjValid) return res.status(400).json({ message: corObjMsg });
+
+  const { obj: reqObjValid, message: reqObjMsg } =
+    validateService.validateObjHasRequiredKeys(req.body, requiredKeys);
+  if (!reqObjValid) return res.status(400).json({ message: reqObjMsg });
+
+  const utorid = req.utorid;
+  const { old: oldPassword, new: potentialPassword } = req.body;
+  const { valid: validPassword, message: passwordMessage, password: newPassword } =
+    validateService.validatePassword(potentialPassword);
+  if (!validPassword) return res.status(400).json({ message: passwordMessage });
+
+  try {
+    const verifyPassword = await userService.verifyUserPassword(
+      utorid,
+      oldPassword
+    );
+
+    if (!verifyPassword) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    await userService.updateUserPassword(
+      utorid,
+      newPassword
+    );
+
+    return res.status(200).json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Error updating password:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   registerUser,
   getUsers,
   getUserById,
   updateUserStatusFields,
   updatePersonalProfile,
+  updatePersonalPassword,
 };

@@ -1,6 +1,5 @@
 const donenv = require("dotenv");
 donenv.config();
-const jwt = require("jsonwebtoken");
 const { roleHasClearance } = require("../constants");
 const { tokenService } = require("../services/token");
 

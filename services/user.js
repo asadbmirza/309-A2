@@ -1,106 +1,14 @@
 const { PrismaClient } = require("@prisma/client");
-const {
-  stringLengthValid,
-  MAX_NAME_LEN,
-  EMAIL_FINISH,
-  generalEmailRegex,
-} = require("../utils");
-const { ROLES } = require("../constants");
+const { validateService } = require("./validate_service");
+const bcrypt = require("bcrypt");
 
 const prisma = new PrismaClient();
 
 const userService = {
-  validateEmail: (email) => {
-    if (typeof email !== "string") {
-      return { valid: false, message: "Invalid email" };
-    }
-    email = email.trim().toLowerCase();
-    if (
-      !email ||
-      !email.endsWith(EMAIL_FINISH) ||
-      !generalEmailRegex.test(email)
-    ) {
-      return { valid: false, message: "Invalid email" };
-    }
-    return { valid: true, email };
-  },
-  validateName: (name) => {
-    if (typeof name !== "string") {
-      return { valid: false, message: "Invalid name" };
-    }
-    name = name.trim();
-    if (!name || !stringLengthValid(name, 1, MAX_NAME_LEN)) {
-      return { valid: false, message: "Invalid name" };
-    }
-    return { valid: true, name };
-  },
-  validateUtorid: (utorid) => {
-    if (typeof utorid !== "string") {
-      return { valid: false, message: "Invalid utorid" };
-    }
-    utorid = utorid.trim();
-    if (!utorid || !stringLengthValid(utorid, 7, 8)) {
-      return { valid: false, message: "Invalid utorid" };
-    }
-    return { valid: true, utorid };
-  },
-
-  validateBirthday: (birthday) => {
-    if (typeof birthday !== "string") {
-      return { valid: false, message: "Invalid birthday" };
-    }
-    birthday = birthday.trim();
-    // Check for YYYY-MM-DD format
-    const birthRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!birthday || !birthRegex.test(birthday)) {
-      return {
-        valid: false,
-        message: "Invalid birthday format. Use YYYY-MM-DD.",
-      };
-    }
-
-    const date = new Date(birthday + "T00:00:00"); // add time to avoid timezone issues
-    if (isNaN(date.getTime())) {
-      return { valid: false, message: "Invalid date" };
-    }
-
-    const [year, month, day] = birthday.split("-").map(Number);
-    if (
-      date.getFullYear() !== year ||
-      date.getMonth() + 1 !== month ||
-      date.getDate() !== day
-    ) {
-      return { valid: false, message: "Invalid date" };
-    }
-
-    return { valid: true, birthday };
-  },
-  validateRole: (role) => {
-    if (typeof role !== "string") {
-      return { valid: false, message: "Invalid role" };
-    }
-    role = role.trim();
-    if (!ROLES.includes(role)) {
-      return { valid: false, message: "Invalid role" };
-    }
-    return { valid: true, role };
-  },
-  validateVerified: (verified) => {
-    if (typeof verified !== "boolean") {
-      return { valid: false, message: "Invalid verified" };
-    }
-    return { valid: true, verified };
-  },
-  validateSuspicious: (suspicious) => {
-    if (typeof suspicious !== "boolean") {
-      return { valid: false, message: "Invalid suspicious" };
-    }
-    return { valid: true, suspicious };
-  },
   validateNewUser: ({ utorid, name, email }) => {
-    const validUtorid = userService.validateUtorid(utorid);
-    const validName = userService.validateName(name);
-    const validEmail = userService.validateEmail(email);
+    const validUtorid = validateService.validateUtorid(utorid);
+    const validName = validateService.validateName(name);
+    const validEmail = validateService.validateEmail(email);
     if (!validUtorid.valid) {
       return { valid: false, message: validUtorid.message };
     }
@@ -117,25 +25,6 @@ const userService = {
       name: validName.name,
       email: validEmail.email,
     };
-  },
-
-  validateObjHasCorrectKeys: (obj, requiredKeys) => {
-    console.log(obj, requiredKeys);
-    for (const key of Object.keys(obj)) {
-      if (!requiredKeys.includes(key)) {
-        return { valid: false, message: `Invalid field: ${key}` };
-      }
-    }
-    return { valid: true, obj };
-  },
-
-  validateObjHasRequiredKeys: (obj, requiredKeys) => {
-    for (const key of requiredKeys) {
-      if (!obj.hasOwnProperty(key)) {
-        return { valid: false, message: `Missing required field: ${key}` };
-      }
-    }
-    return { valid: true, obj };
   },
 
   isUserSuspicious: async (id) => {
@@ -161,6 +50,15 @@ const userService = {
         lastLogin: true,
         avatarUrl: true,
         role: true,
+      },
+    });
+  },
+  findUserByUtorid: async (utorid) => {
+    return prisma.user.findUnique({
+      where: { utorid },
+      select: {
+        id: true,
+        utorid: true,
       },
     });
   },
@@ -314,6 +212,29 @@ const userService = {
     });
 
     return user;
+  },
+
+  verifyUserPassword: async (utorid, password) => {
+    const user = await prisma.user.findUnique({
+      where: { utorid },
+      select: { password: true },
+    });
+
+    if (!user) return false;
+
+    const isMatch = bcrypt.compare(password, user.password);
+    return isMatch;
+  },
+
+  updateUserPassword: async (utorid, newPassword) => {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const user = await prisma.user.update({
+      where: { utorid },
+      data: { password: hashedPassword },
+      select: { id: true, utorid: true },
+    });
+
+    return { id: user.id, utorid: user.utorid };
   },
 };
 
