@@ -42,7 +42,7 @@ authRouter.all("/tokens", (req, res) => {
 
 
 // events routes
-eventsRouter.post("/", verifyUserRole(RoleType.manager), eventsController.createEvent);
+eventsRouter.post("/", verifyUserRole(RoleType.manager), eventsController.createEvent); 
 eventsRouter.all("/", (req, res) => {
   res.status(405).json({ message: "Method Not Allowed" });
 });

@@ -29,7 +29,7 @@ app.use(express.json());
 // ADD YOUR WORK HERE
 app.use('/users', authenticateJWT, userRouter);
 app.use('/auth', authRouter);
-app.use('/events', eventsRouter);
+app.use('/events', authenticateJWT, eventsRouter);
 
 const server = app.listen(port, () => {
     console.log(`Server running on port ${port}`);
