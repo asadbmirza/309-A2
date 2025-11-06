@@ -10,7 +10,6 @@ generator client {
 enum RoleType {
   regular
   cashier
-  organizer
   manager
   superuser
 }
@@ -71,7 +70,7 @@ model Promotion {
   points        Int?
   createdAt     DateTime      @default(now())
   users         User[]        @relation("UserPromotions")
-  transactions  Transaction[]
+  transactions  TransactionPromotion[]
 }
 
 model Event {
@@ -124,6 +123,8 @@ model Transaction {
   processed  Boolean?        @default(false)
   createdAt  DateTime        @default(now())
 
+  relatedId Int?
+
   createdBy   User @relation("CreatedTransactions", fields: [createdById], references: [id])
   createdById Int
 
@@ -133,6 +134,15 @@ model Transaction {
   event   Event? @relation(fields: [eventId], references: [id])
   eventId Int?
 
-  promotion   Promotion? @relation(fields: [promotionId], references: [id])
-  promotionId Int?
+  promotions TransactionPromotion[]
+}
+
+model TransactionPromotion {
+  id             Int         @id @default(autoincrement())
+  transaction    Transaction @relation(fields: [transactionId], references: [id])
+  transactionId  Int
+  promotion      Promotion   @relation(fields: [promotionId], references: [id])
+  promotionId    Int
+  
+  @@unique([transactionId, promotionId])
 }

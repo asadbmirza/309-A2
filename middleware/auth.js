@@ -2,6 +2,8 @@ const donenv = require("dotenv");
 donenv.config();
 const { roleHasClearance } = require("../constants");
 const { tokenService } = require("../services/token");
+const eventService = require("../services/events");
+const { RoleType } = require("@prisma/client");
 
 const authenticateJWT = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -35,4 +37,17 @@ const verifyUserRole = (requiredRole) => {
   };
 };
 
-module.exports = { authenticateJWT, verifyUserRole };
+const allowManagerOrOrganizer = async (req, res, next) => {
+  const userRole = req.auth?.role;
+  if (userRole && roleHasClearance(userRole, RoleType.manager)) return next();
+  const userId = req.userId;
+  if (!userId) {
+    return res.sendStatus(403);
+  }
+
+  const isOrganizer = await eventService.isEventOrganizer(req.params.eventId, userId);
+  if (isOrganizer) return next();
+  return res.sendStatus(403);
+};
+
+module.exports = { authenticateJWT, verifyUserRole, allowManagerOrOrganizer };
