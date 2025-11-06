@@ -101,7 +101,14 @@ class PromotionController {
         try {
             const { promotionId } = req.params;
             const userRole = req.auth?.role || 'regular';
-            const promotion = await PromotionService.getPromotion(promotionId);
+            if (!promotionId) {
+                return res.status(400).json({ message: "promotionId parameter is required" });
+            }
+            const promotionIdNum = parseInt(promotionId, 10);
+            if (isNaN(promotionIdNum)) {
+                return res.status(400).json({ error: "Invalid promotionId" });
+            }
+            const promotion = await PromotionService.getPromotion(promotionIdNum);
 
             if (!promotion) {
                 return res.status(404).json({ message: "Promotion not found" });
@@ -141,7 +148,15 @@ class PromotionController {
             const { promotionId } = req.params;
             const updates = req.body;
 
-            const promotion = await PromotionService.getPromotion(promotionId);
+            if (!promotionId) {
+                return res.status(400).json({ message: "promotionId parameter is required" });
+            }
+            const promotionIdNum = parseInt(promotionId, 10);
+            if (isNaN(promotionIdNum)) {
+                return res.status(400).json({ error: "Invalid promotionId" });
+            }
+
+            const promotion = await PromotionService.getPromotion(promotionIdNum);
             if (!promotion) {
                 return res.status(404).json({ message: "Promotion not found" });
             }
@@ -208,7 +223,15 @@ class PromotionController {
     async deletePromotion(req, res) {
         try {
             const { promotionId } = req.params;
-            const promotion = await PromotionService.getPromotion(promotionId);
+            if (!promotionId) {
+                return res.status(400).json({ message: "promotionId parameter is required" });
+            }
+            const promotionIdNum = parseInt(promotionId, 10);
+            if (isNaN(promotionIdNum)) {
+                return res.status(400).json({ error: "Invalid promotionId" });
+            }
+            
+            const promotion = await PromotionService.getPromotion(promotionIdNum);
             if (!promotion) {
                 return res.status(404).json({ message: "Promotion not found" });
             }

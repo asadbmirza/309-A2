@@ -11,7 +11,11 @@ const authenticateJWT = async (req, res, next) => {
   if (authHeader) {
     const token = authHeader.split(" ")[1];
     try {
-      const { userId, utorid, role } = tokenService.verifyJwtToken(token);
+      const decoded = tokenService.verifyJwtToken(token);
+      if (!decoded) {
+        return res.sendStatus(401);
+      }
+      const { userId, utorid, role } = decoded;
       if (!userId || !utorid || !role) {
         return res.sendStatus(403);
       }
@@ -35,6 +39,7 @@ const verifyUserRole = (requiredRole) => {
     if (roleHasClearance(userRole, requiredRole)) {
       next();
     } else {
+      console.log(`User role ${userRole} does not have clearance for required role ${requiredRole}`);
       res.sendStatus(403);
     }
   };
@@ -47,8 +52,17 @@ const allowManagerOrOrganizer = async (req, res, next) => {
   if (!userId) {
     return res.sendStatus(403);
   }
+  
+  const eventId = req.params?.eventId;
+  if (!eventId) {
+    return res.status(400).json({ message: "eventId parameter is required" });
+  }
+  const eventIdNum = parseInt(eventId, 10);
+  if (isNaN(eventIdNum)) {
+    return res.status(400).json({ error: "Invalid eventId" });
+  }
 
-  const isOrganizer = await eventService.isEventOrganizer(req.params.eventId, userId);
+  const isOrganizer = await eventService.isEventOrganizer(eventIdNum, userId);
   if (isOrganizer) return next();
   return res.sendStatus(403);
 };

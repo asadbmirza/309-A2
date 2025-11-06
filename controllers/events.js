@@ -103,7 +103,15 @@ class EventController {
             const { eventId } = req.params;
             const userRole = req.auth?.role || 'regular';
             const userId = req.userId;
-            const event = await eventService.getEventById(eventId);
+
+            if (!eventId) {
+                return res.status(400).json({ message: "eventId parameter is required" });
+            }
+            const eventIdNum = parseInt(eventId, 10);
+            if (isNaN(eventIdNum)) {
+                return res.status(400).json({ error: "Invalid eventId" });
+            }
+            const event = await eventService.getEventById(eventIdNum);
 
             if (!event) {
                 return res.status(404).json({ message: "Event not found" });
@@ -155,7 +163,15 @@ class EventController {
             const userRole = req.auth?.role;
             const updates = req.body;
 
-            const event = await eventService.getEventById(eventId);
+            if (!eventId) {
+                return res.status(400).json({ message: "eventId parameter is required" });
+            }
+            const eventIdNum = parseInt(eventId, 10);
+            if (isNaN(eventIdNum)) {
+                return res.status(400).json({ error: "Invalid eventId" });
+            }
+            const event = await eventService.getEventById(eventIdNum);
+
             if (!event) {
                 return res.status(404).json({ message: "Event not found" });
             }
@@ -247,7 +263,15 @@ class EventController {
     async deleteEvent(req, res) {
         try {
             const { eventId } = req.params;
-            const event = await eventService.getEventById(eventId);
+            if (!eventId) {
+                return res.status(400).json({ message: "eventId parameter is required" });
+            }
+            const eventIdNum = parseInt(eventId, 10);
+            if (isNaN(eventIdNum)) {
+                return res.status(400).json({ error: "Invalid eventId" });
+            }
+            const event = await eventService.getEventById(eventIdNum);
+
             if (!event) {
                 return res.status(404).json({ message: "Event not found" });
             }
@@ -271,7 +295,16 @@ class EventController {
             if (!utorid) {
                 return res.status(400).json({ message: "utorid is required" });
             }
-            const event = await eventService.getEventById(eventId);
+
+            if (!eventId) {
+                return res.status(400).json({ message: "eventId parameter is required" });
+            }
+            const eventIdNum = parseInt(eventId, 10);
+            if (isNaN(eventIdNum)) {
+                return res.status(400).json({ error: "Invalid eventId" });
+            }
+            const event = await eventService.getEventById(eventIdNum);
+
             if (!event) {
                 return res.status(404).json({ message: "Event not found" });
             }
@@ -310,7 +343,25 @@ class EventController {
         try {
             const { eventId, userId } = req.params;
 
-            const result = await eventService.removeOrganizer(eventId, userId);
+            if (!eventId) {
+                return res.status(400).json({ message: "eventId parameter is required" });
+            }
+            const eventIdNum = parseInt(eventId, 10);
+            if (isNaN(eventIdNum)) {
+                return res.status(400).json({ error: "Invalid eventId" });
+            }
+
+            if (!userId) {
+                return res.status(400).json({ message: "userId parameter is required" });
+            }
+            const userIdNum = parseInt(userId, 10);
+            if (isNaN(userIdNum)) {
+                return res.status(400).json({ error: "Invalid userId" });
+            }
+            const event = await eventService.getEventById(eventIdNum);
+
+            const result = await eventService.removeOrganizer(eventIdNum, userIdNum);
+
             if (!result) {
                 return res.status(404).json({ message: "Organizer not found for this event" });
             }
@@ -330,7 +381,15 @@ class EventController {
                 return res.status(400).json({ message: "utorid is required" });
             }
 
-            const event = await eventService.getEventById(eventId);
+            if (!eventId) {
+                return res.status(400).json({ message: "eventId parameter is required" });
+            }
+            const eventIdNum = parseInt(eventId, 10);
+            if (isNaN(eventIdNum)) {
+                return res.status(400).json({ error: "Invalid eventId" });
+            }
+            const event = await eventService.getEventById(eventIdNum);
+
             if (!event) {
                 return res.status(404).json({ message: "Event not found" });
             }
@@ -379,7 +438,24 @@ class EventController {
         try {
             const { eventId, userId } = req.params;
 
-            const result = await eventService.removeGuest(eventId, userId);
+            if (!eventId) {
+                return res.status(400).json({ message: "eventId parameter is required" });
+            }
+            const eventIdNum = parseInt(eventId, 10);
+            if (isNaN(eventIdNum)) {
+                return res.status(400).json({ error: "Invalid eventId" });
+            }
+
+            if (!userId) {
+                return res.status(400).json({ message: "userId parameter is required" });
+            }
+            const userIdNum = parseInt(userId, 10);
+            if (isNaN(userIdNum)) {
+                return res.status(400).json({ error: "Invalid userId" });
+            }
+
+            const result = await eventService.removeGuest(eventIdNum, userIdNum);
+
             if (!result) {
                 return res.status(404).json({ message: "Guest not found for this event" });
             }
@@ -394,7 +470,14 @@ class EventController {
         try {
             const { eventId } = req.params;
             const userId = req.userId;
-            const event = await eventService.getEventById(eventId);
+            if (!eventId) {
+                return res.status(400).json({ message: "eventId parameter is required" });
+            }
+            const eventIdNum = parseInt(eventId, 10);
+            if (isNaN(eventIdNum)) {
+                return res.status(400).json({ error: "Invalid eventId" });
+            }
+            const event = await eventService.getEventById(eventIdNum);
 
             if (!event) {
                 return res.status(404).json({ message: "Event not found" });
@@ -439,7 +522,14 @@ class EventController {
         try {
             const { eventId } = req.params;
             const userId = req.userId;
-            const event = await eventService.getEventById(eventId);
+            if (!eventId) {
+                return res.status(400).json({ message: "eventId parameter is required" });
+            }
+            const eventIdNum = parseInt(eventId, 10);
+            if (isNaN(eventIdNum)) {
+                return res.status(400).json({ error: "Invalid eventId" });
+            }
+            const event = await eventService.getEventById(eventIdNum);
 
             if (!event) {
                 return res.status(404).json({ message: "Event not found" });
@@ -472,7 +562,15 @@ class EventController {
                 return res.status(400).json({ message: "Amount must be a positive integer" });
             }
 
-            const event = await eventService.getEventById(eventId);
+            if (!eventId) {
+                return res.status(400).json({ message: "eventId parameter is required" });
+            }
+            const eventIdNum = parseInt(eventId, 10);
+            if (isNaN(eventIdNum)) {
+                return res.status(400).json({ error: "Invalid eventId" });
+            }
+            const event = await eventService.getEventById(eventIdNum);
+
             if (!event) {
                 return res.status(404).json({ message: "Event not found" });
             }
