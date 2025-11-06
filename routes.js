@@ -2,13 +2,16 @@ const express = require("express");
 const userController = require("./controllers/user");
 const authController = require("./controllers/auth");
 const eventsController = require("./controllers/events");
+const promotionsController = require("./controllers/promotions");
 const userRouter = express.Router();
 const authRouter = express.Router();
 const eventsRouter = express.Router();
+const promotionsRouter = express.Router();
 const { verifyUserRole, allowManagerOrOrganizer } = require("./middleware/auth");
 const { RoleType } = require("@prisma/client");
 const { upload } = require("./middleware/upload");
 const events = require("./services/events");
+const promotions = require("./services/promotions");
 
 // user routes
 userRouter.post(
@@ -113,4 +116,20 @@ eventsRouter.all("/:eventId/transactions", (req, res) => {
   res.status(405).json({ message: "Method Not Allowed" });
 });
 
-module.exports = { userRouter, authRouter, eventsRouter };
+
+// promotions routes
+promotionsRouter.post("/", verifyUserRole(RoleType.manager), promotionsController.createPromotion);
+promotionsRouter.get("/", promotionsController.getPromotions);
+
+promotionsRouter.get("/:promotionId", promotionsController.getPromotion);
+promotionsRouter.patch("/:promotionId", verifyUserRole(RoleType.manager), promotionsController.updatePromotion);
+promotionsRouter.delete("/:promotionId", verifyUserRole(RoleType.manager), promotionsController.deletePromotion);
+
+promotionsRouter.all("/", (req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
+promotionsRouter.all("/:promotionId", (req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
+
+module.exports = { userRouter, authRouter, eventsRouter, promotionsRouter };
