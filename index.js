@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-const { authRouter, userRouter } = require("./routes");
-const { authenticateJWT } = require("./middleware/auth");
+const { authRouter, userRouter, eventsRouter, promotionsRouter } = require('./routes');
+const { authenticateJWT } = require('./middleware/auth');
 
 'use strict';
 
@@ -31,23 +31,10 @@ app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ADD YOUR WORK HERE
-app.use("/users", authenticateJWT, userRouter);
-app.use("/auth", authRouter);
-
-app.use((error, req, res, next) => {
-  if (error instanceof multer.MulterError) {
-    if (error.code === "LIMIT_FILE_SIZE") {
-      return res
-        .status(400)
-        .json({ message: "File too large. Maximum size is 5MB." });
-    }
-    return res.status(400).json({ message: error.message });
-  }
-  if (error.message && error.message.includes("Invalid file type")) {
-    return res.status(400).json({ message: error.message });
-  }
-  next(error);
-});
+app.use('/users', authenticateJWT, userRouter);
+app.use('/auth', authRouter);
+app.use('/events', authenticateJWT, eventsRouter);
+app.use('/promotions', authenticateJWT, promotionsRouter);
 
 const server = app.listen(port, () => {
   console.log(`Server running on port ${port}`);
