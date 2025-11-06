@@ -1,11 +1,14 @@
 const express = require("express");
 const userController = require("./controllers/user");
 const authController = require("./controllers/auth");
+const eventsController = require("./controllers/events");
 const userRouter = express.Router();
 const authRouter = express.Router();
-const { verifyUserRole } = require("./middleware/auth");
+const eventsRouter = express.Router();
+const { verifyUserRole, allowManagerOrOrganizer } = require("./middleware/auth");
 const { RoleType } = require("@prisma/client");
 const { upload } = require("./middleware/upload");
+const events = require("./services/events");
 
 // user routes
 userRouter.post(
@@ -64,4 +67,50 @@ authRouter.all("/resets/:resetToken", (_req, res) => {
   res.status(405).json({ message: "Method Not Allowed" });
 });
 
-module.exports = { userRouter, authRouter };
+
+// events routes
+eventsRouter.post("/", verifyUserRole(RoleType.manager), eventsController.createEvent); 
+eventsRouter.get("/", eventsController.getEvents);
+
+eventsRouter.get("/:eventId", eventsController.getEvent);
+eventsRouter.patch("/:eventId", allowManagerOrOrganizer, eventsController.updateEvent);
+eventsRouter.delete("/:eventId", verifyUserRole(RoleType.manager), eventsController.deleteEvent);
+
+eventsRouter.post("/:eventId/organizers", verifyUserRole(RoleType.manager), eventsController.addOrganizer);
+eventsRouter.delete("/:eventId/organizers/:userId", verifyUserRole(RoleType.manager), eventsController.removeOrganizer);
+
+eventsRouter.post("/:eventId/guests", allowManagerOrOrganizer, eventsController.addGuest);
+
+eventsRouter.post("/:eventId/guests/me", eventsController.rsvpToEvent);
+eventsRouter.delete("/:eventId/guests/me", eventsController.removeRsvp);
+
+eventsRouter.delete("/:eventId/guests/:userId", verifyUserRole(RoleType.manager), eventsController.removeGuest);
+
+eventsRouter.post("/:eventId/transactions", allowManagerOrOrganizer, eventsController.awardPoints);
+
+eventsRouter.all("/", (req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
+eventsRouter.all("/:eventId", (req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
+eventsRouter.all("/:eventId/organizers", (req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
+eventsRouter.all("/:eventId/organizers/:userId", (req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
+eventsRouter.all("/:eventId/guests", (req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
+eventsRouter.all("/:eventId/guests/:userId", (req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
+eventsRouter.all("/:eventId/guests/me", (req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
+eventsRouter.all("/:eventId/transactions", (req, res) => {
+  res.status(405).json({ message: "Method Not Allowed" });
+});
+
+module.exports = { userRouter, authRouter, eventsRouter };
