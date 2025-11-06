@@ -10,10 +10,10 @@ const bcrypt = require("bcrypt");
 const prisma = new PrismaClient();
 
 async function main() {
-  const [utorid, password] = process.argv.slice(2);
+  const [utorid, email, password] = process.argv.slice(2);
 
-  if (!utorid || !password) {
-    console.error("Usage: node prisma/createsu.js <utorid> <password>");
+  if (!utorid || !email || !password) {
+    console.error("Usage: node prisma/createsu.js <utorid> <email> <password>");
     process.exitCode = 1;
     return;
   }
@@ -36,13 +36,14 @@ async function main() {
       });
 
       console.log(
-        `Updated existing user '${utorid}' to role superuser and marked verified.`
+        `Updated existing user '${utorid}' with email '${email}' to role superuser and marked verified.`
       );
     } else {
       await prisma.user.create({
         data: {
           utorid,
           password: hashed,
+          email,
           role: "superuser",
           verified: true,
         },

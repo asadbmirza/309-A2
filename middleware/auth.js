@@ -5,6 +5,7 @@ const { tokenService } = require("../services/token");
 
 const authenticateJWT = async (req, res, next) => {
   const authHeader = req.headers.authorization;
+  console.log("headers:", req.headers);
   if (authHeader) {
     const token = authHeader.split(" ")[1];
     try {
@@ -12,6 +13,7 @@ const authenticateJWT = async (req, res, next) => {
       if (!userId || !utorid || !role) {
         return res.sendStatus(403);
       }
+      console.log("Authenticated user:", { userId, utorid, role });
       req.userId = userId;
       req.utorid = utorid;
       req.auth = { role };
@@ -20,6 +22,7 @@ const authenticateJWT = async (req, res, next) => {
     }
     next();
   } else {
+    console.log("No Authorization header present");
     res.sendStatus(401);
   }
 };
