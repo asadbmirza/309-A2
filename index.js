@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-const { authRouter, userRouter, transactionRouter } = require("./routes");
-const { authenticateJWT } = require("./middleware/auth");
+const { authRouter, userRouter, eventsRouter, promotionsRouter, transactionRouter } = require('./routes');
+const { authenticateJWT } = require('./middleware/auth');
 
 'use strict';
 
@@ -34,6 +34,8 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/users", authenticateJWT, userRouter);
 app.use("/auth", authRouter);
 app.use("/transactions", authenticateJWT, transactionRouter);
+app.use('/events', authenticateJWT, eventsRouter);
+app.use('/promotions', authenticateJWT, promotionsRouter);
 
 app.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {

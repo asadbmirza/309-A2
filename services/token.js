@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 dotenv = require("dotenv");
 dotenv.config();
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const tokenService = {
   generateResetToken: async (userId) => {
@@ -24,7 +25,7 @@ const tokenService = {
 
   generateJwtToken: (userId, role, utorid) => {
     const expiresAt = new Date(Date.now() + 24 * 3600 * 1000); // 24 hours
-    const token = jwt.sign({ userId, role, utorid }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ userId, role, utorid }, JWT_SECRET, {
       expiresIn: "24h",
     });
     return { token, expiresAt: expiresAt.toISOString() };
@@ -32,7 +33,7 @@ const tokenService = {
 
   verifyJwtToken: (token) => {
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, JWT_SECRET);
       return decoded;
     } catch (err) {
       return null;

@@ -3,7 +3,23 @@ const { validateService } = require("../services/validate_service");
 const { userService } = require("../services/user");
 
 const authenticateUser = async (req, res) => {
-  const { utorid, password } = req.body;
+  let { utorid, password } = req.body;
+  const requiredKeys = ["utorid", "password"];
+  const requiredValidation = validateService.validateObjHasRequiredKeys(
+    req.body,
+    requiredKeys
+  );
+  if (!requiredValidation.valid) {
+    return res.status(400).json({ message: requiredValidation.message });
+  }
+  const objKeyValidation = validateService.validateObjHasCorrectKeys(
+    req.body,
+    requiredKeys
+  );
+  if (!objKeyValidation.valid) {
+    return res.status(400).json({ message: objKeyValidation.message });
+  }
+
   try {
     const user = await tokenService.login(utorid, password);
     if (!user) {

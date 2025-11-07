@@ -15,7 +15,7 @@ const registerUser = async (req, res) => {
     utorid: trimmedUtorid,
     name: trimmedName,
     email: normalizedEmail,
-  } = validateService.validateNewUser({ utorid, name, email });
+  } = userService.validateNewUser({ utorid, name, email });
 
   if (!valid) return res.status(400).json({ message });
 
