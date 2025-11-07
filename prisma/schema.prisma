@@ -69,7 +69,7 @@ model Promotion {
   points      Int?
   createdAt   DateTime      @default(now())
   users       User[]        @relation("UserPromotions")
-  transactions Transaction[]
+  transactions Transaction[] @relation("PromotionTransactions")
 }
 
 model Event {
@@ -119,7 +119,7 @@ model Transaction {
   amount       Int?             // points gained/lost
   remark       String?
   suspicious   Boolean?         @default(false)
-  processed    Boolean?         @default(false)
+  processed    Boolean?         @default(true)
   createdAt    DateTime         @default(now())
 
   createdBy    User             @relation("CreatedTransactions", fields: [createdById], references: [id])
@@ -131,6 +131,5 @@ model Transaction {
   event        Event?           @relation(fields: [eventId], references: [id])
   eventId      Int?
 
-  promotion    Promotion?       @relation(fields: [promotionId], references: [id])
-  promotionId  Int?
+  promotion    Promotion[]       @relation("PromotionTransactions")
 }

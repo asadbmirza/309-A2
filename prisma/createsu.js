@@ -10,7 +10,7 @@ const bcrypt = require("bcrypt");
 const prisma = new PrismaClient();
 
 async function main() {
-  const [utorid, password] = process.argv.slice(2);
+  const [utorid, email, password] = process.argv.slice(2);
 
   if (!utorid || !password) {
     console.error("Usage: node prisma/createsu.js <utorid> <password>");
@@ -42,6 +42,7 @@ async function main() {
       await prisma.user.create({
         data: {
           utorid,
+          email: email,
           password: hashed,
           role: "superuser",
           verified: true,

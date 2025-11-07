@@ -125,6 +125,15 @@ const validateService = {
     return { valid: true, obj };
   },
 
+  validateObjHasCorrectKeysAndType: (obj, requiredKeys) => {
+    for (const key of Object.keys(obj)) {
+      if (!requiredKeys.hasOwnProperty(key) || typeof obj[key] !== requiredKeys[key]) {
+        return { valid: false, message: `Invalid field: ${key}` };
+      }
+    }
+    return { valid: true, obj };
+  },
+  
   validateObjHasRequiredKeys: (obj, requiredKeys) => {
     for (const key of requiredKeys) {
       if (!obj.hasOwnProperty(key)) {
