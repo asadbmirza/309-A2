@@ -1,6 +1,7 @@
 const { userService } = require("../services/user");
 const { tokenService } = require("../services/token");
 const { validateService } = require("../services/validate_service");
+const { transactionService } = require("../services/transactions");
 const { roleHasClearance } = require("../constants");
 const { RoleType } = require("@prisma/client");
 
@@ -260,8 +261,21 @@ const updatePersonalProfile = async (req, res) => {
       "birthday",
       "avatar",
     ]);
-  if (!validObjKeys || (Object.keys(req.body).length === 0 && !updatedAvatar))
+  const bodyKeys = Object.keys(req.body);
+  if (!validObjKeys || (bodyKeys.length === 0 && !updatedAvatar))
     return res.status(400).json({ message: objKeysMessage });
+
+  if (bodyKeys.length > 0) {
+    const allNull = bodyKeys.every(
+      (k) => req.body[k] === null || req.body[k] === undefined
+    );
+
+    if (allNull && !updatedAvatar) {
+      return res
+        .status(400)
+        .json({ message: "At least one field must be provided for update" });
+    }
+  }
 
   let updatedName, updatedEmail, updatedBirthday;
 
@@ -304,6 +318,12 @@ const updatePersonalProfile = async (req, res) => {
       }
     }
 
+    console.log("Updating user profile with:", {
+      name: updatedName,
+      email: updatedEmail,
+      birthday: updatedBirthday,
+      avatarUrl: updatedAvatar,
+    });
     const updatedUser = await userService.updateUserProfile(userId, {
       name: updatedName,
       email: updatedEmail,
@@ -372,6 +392,248 @@ const getPersonalProfile = async (req, res) => {
   }
 };
 
+const createUserTransaction = async (req, res) => {
+  try {
+    const {
+      valid,
+      obj: parsedData,
+      message,
+    } = validateService.validateObjHasCorrectKeysAndType(req.body, {
+      type: "string",
+      amount: "number",
+      remark: "string",
+    });
+    if (!valid) return res.status(400).json({ error: message });
+
+    const { type, amount, remark } = parsedData;
+    if (type !== "transfer") {
+      return res
+        .status(400)
+        .json({ error: "Only 'transfer' type supported at this endpoint" });
+    }
+
+    const amt = Number(amount);
+    if (!Number.isInteger(amt) || amt <= 0) {
+      return res.status(400).json({ error: "Invalid amount" });
+    }
+
+    let recipientId = req.params.userId;
+    if (recipientId === undefined) {
+      return res
+        .status(400)
+        .json({ error: "Recipient userId is required in the path" });
+    }
+
+    const senderUtorid = req.utorid;
+
+    const { data, error } = await transactionService.createTransferTransaction({
+      senderUtorid,
+      recipientId,
+      amt,
+      remark,
+    });
+
+    if (error) {
+      const msg = error.message || "Internal Server Error";
+      if (msg === "Sender not verified") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      if (msg === "Insufficient points") {
+        return res.status(400).json({ message: msg });
+      }
+      if (msg === "Recipient not found" || msg === "Sender not found") {
+        return res.status(404).json({ message: msg });
+      }
+      return res.status(400).json({ message: msg });
+    }
+
+    // return the sender transaction representation
+    return res.status(201).json(data);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+const createUserRedemption = async (req, res) => {
+  try {
+    const {
+      valid,
+      obj: parsedData,
+      message,
+    } = validateService.validateObjHasCorrectKeysAndType(req.body, {
+      type: "string",
+      amount: "number",
+      remark: "string",
+    });
+
+    const { valid: reqBodyValid, message: reqBodyMessage } =
+      validateService.validateObjHasRequiredKeys(req.body, ["type", "amount"]);
+
+    if (!valid || !reqBodyValid)
+      return res.status(400).json({ error: message || reqBodyMessage });
+
+    if (parsedData.type !== "redemption") {
+      return res
+        .status(400)
+        .json({ error: "Only 'redemption' type supported at this endpoint" });
+    }
+
+    if (!Number.isInteger(parsedData.amount) || parsedData.amount <= 0) {
+      return res.status(400).json({ error: "Invalid amount" });
+    }
+
+    const { data, error } =
+      await transactionService.createRedemptionTransaction({
+        userId: req.utorid,
+        amount: parsedData.amount,
+        description: parsedData.remark || "",
+      });
+
+    if (error) {
+      const msg = error.message || "Internal Server Error";
+      if (msg === "User not verified") {
+        return res.status(403).json({ message: msg });
+      }
+      return res.status(400).json({ message: msg });
+    }
+
+    return res.status(200).json(data);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+const getUserTransactions = async (req, res) => {
+  try {
+    const {
+      valid,
+      obj: parsedData,
+      message,
+    } = validateService.validateObjHasCorrectKeys(req.query, [
+      "type",
+      "relatedId",
+      "promotionId",
+      "amount",
+      "operator",
+      "page",
+      "limit",
+    ]);
+
+    if (!valid) return res.status(400).json({ message });
+
+    const q = parsedData || {};
+
+    // type: optional string
+    if (q.type !== undefined && typeof q.type !== "string") {
+      return res
+        .status(400)
+        .json({ error: "Invalid type for type; expected string" });
+    }
+
+    // relatedId: optional positive integer
+    if (q.relatedId !== undefined) {
+      const r = Number(q.relatedId);
+      if (Number.isNaN(r) || !Number.isInteger(r) || r <= 0) {
+        return res.status(400).json({
+          error: "Invalid type for relatedId; expected positive integer",
+        });
+      }
+      q.relatedId = r;
+    }
+
+    // amount: optional number
+    if (q.amount !== undefined) {
+      const a = Number(q.amount);
+      if (Number.isNaN(a)) {
+        return res
+          .status(400)
+          .json({ error: "Invalid type for amount; expected number" });
+      }
+      q.amount = a;
+    }
+
+    // operator: optional string
+    if (q.operator !== undefined && typeof q.operator !== "string") {
+      return res
+        .status(400)
+        .json({ error: "Invalid type for operator; expected string" });
+    }
+
+    // page: optional positive integer
+    if (q.page !== undefined) {
+      const pg = Number(q.page);
+      if (Number.isNaN(pg) || !Number.isInteger(pg) || pg <= 0) {
+        return res
+          .status(400)
+          .json({ error: "Invalid type for page; expected positive integer" });
+      }
+      q.page = pg;
+    }
+
+    // limit: optional positive integer
+    if (q.limit !== undefined) {
+      const l = Number(q.limit);
+      if (Number.isNaN(l) || !Number.isInteger(l) || l <= 0) {
+        return res
+          .status(400)
+          .json({ error: "Invalid type for limit; expected positive integer" });
+      }
+      q.limit = l;
+    }
+
+    if (parsedData.amount && !parsedData.operator) {
+      return res
+        .status(400)
+        .json({ error: "Operator is required when filtering by amount" });
+    }
+
+    if (parsedData.relatedId && !parsedData.type) {
+      return res
+        .status(400)
+        .json({ error: "Type is required when filtering by relatedId" });
+    }
+
+    if (parsedData.operator && !parsedData.amount) {
+      return res
+        .status(400)
+        .json({ error: "Amount is required when filtering by operator" });
+    }
+
+    if (
+      parsedData.operator &&
+      parsedData.operator !== "gte" &&
+      parsedData.operator !== "lte"
+    ) {
+      return res.status(400).json({ error: "Invalid operator" });
+    }
+
+    const utorid = req.utorid;
+
+    const { data, error } = await transactionService.getUserTransactions({
+      utorid,
+      type: parsedData.type,
+      relatedId: parsedData.relatedId,
+      promotionId: parsedData.promotionId,
+      amount: parsedData.amount,
+      operator: parsedData.operator,
+      page: parsedData.page,
+      limit: parsedData.limit,
+    });
+
+    if (error) {
+      const msg = error.message || "Internal Server Error";
+      if (msg === "User not found")
+        return res.status(404).json({ message: msg });
+      return res.status(400).json({ message: msg });
+    }
+
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error("getUserTransactions error:", err);
+    return res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   registerUser,
   getUsers,
@@ -380,4 +642,7 @@ module.exports = {
   updatePersonalProfile,
   updatePersonalPassword,
   getPersonalProfile,
+  createUserTransaction,
+  createUserRedemption,
+  getUserTransactions,
 };
