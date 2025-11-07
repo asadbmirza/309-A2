@@ -1,4 +1,4 @@
-Asad Mirza, Moiz Mohammad, Mohammad Ibrahim, we split up the tasks as following.
+Asad Mirza, Moiz Mohammad, Mohamed Ibrahim, we split up the tasks as following.
 
 =================================================================
 Asad: Authentication & Users
@@ -16,7 +16,7 @@ APIs / Modules:
 - Handle JWT middleware & role-based access
 
 =================================================================
-Mohammad: Transactions & Points Logic
+Mohamed: Transactions & Points Logic
 =================================================================
 Focus: All transaction types and points accounting
 

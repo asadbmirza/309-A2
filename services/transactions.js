@@ -18,6 +18,10 @@ const transactionService = {
         include: { promotions: true },
       });
 
+      cashierUser = await prisma.user.findUnique({
+        where: { id: cashier },
+      });
+
       if (!customer) {
         return { data: null, error: new Error("User not found") };
       }
@@ -100,7 +104,12 @@ const transactionService = {
         pointPromotionRateIncrease += promo.rate * 100;
       }
 
-      const earnedPoints = Math.round(spent * (4 + pointPromotionRateIncrease));
+      let earnedPoints = Math.round(spent * (4 + pointPromotionRateIncrease));
+
+      if (cashierUser.suspicious) {
+        earnedPoints = 0;
+      }
+
       await prisma.user.update({
         where: { utorid: customer.utorid },
         data: { points: { increment: earnedPoints } },
@@ -114,10 +123,13 @@ const transactionService = {
           remark: description || null,
           createdById: cashier,
           userId: customer.id,
-          promotion: {
+          promotions: {
             connect: usedPromotions.map((id) => ({ id })),
           },
           processed: true,
+        },
+        include: {
+          createdBy: { select: { utorid: true } },
         },
       });
 
@@ -129,7 +141,7 @@ const transactionService = {
         earned: purchase.amount,
         remark: purchase.remark || "",
         promotionIds: usedPromotions,
-        createdBy: purchase.createdById,
+        createdBy: purchase.createdBy.utorid,
       };
 
       return { data: formattedObject, error: null };
@@ -216,14 +228,15 @@ const transactionService = {
           remark: description || null,
           createdById: cashier,
           userId: customer.id,
-          promotion: usedPromotions.length
+          promotions: usedPromotions.length
             ? { connect: usedPromotions.map((id) => ({ id })) }
             : undefined,
           processed: true,
+          relatedId: Number(relatedId),
         },
         include: {
           createdBy: { select: { utorid: true } },
-          promotion: { select: { id: true } },
+          promotions: { select: { id: true } },
         },
       });
 
@@ -288,7 +301,7 @@ const transactionService = {
       }
 
       const recipient = await prisma.user.findUnique({
-        where: { utorid: recipientId },
+        where: { id: recipientId },
       });
       if (!recipient) {
         return { data: null, error: new Error("Recipient not found") };
@@ -297,8 +310,6 @@ const transactionService = {
       if ((sender.points || 0) < amt) {
         return { data: null, error: new Error("Insufficient points") };
       }
-
-      console.log("recipient", recipient);
 
       const createSenderTx = prisma.transaction.create({
         data: {
@@ -311,8 +322,6 @@ const transactionService = {
         },
         include: { createdBy: { select: { utorid: true } } },
       });
-
-      console.log("sender", createSenderTx);
 
       const createRecipientTx = prisma.transaction.create({
         data: {
@@ -389,6 +398,7 @@ const transactionService = {
           userId: customer.id,
           processed: false,
         },
+        include: { createdBy: { select: { utorid: true } } },
       });
 
       const formattedObject = {
@@ -398,7 +408,7 @@ const transactionService = {
         processedBy: null,
         amount: redemption.amount,
         remark: redemption.remark || "",
-        createdBy: redemption.createdById,
+        createdBy: redemption.createdBy.utorid,
       };
 
       return {
@@ -491,7 +501,7 @@ const transactionService = {
       const include = {
         user: { select: { utorid: true } },
         createdBy: { select: { utorid: true } },
-        promotion: { select: { id: true } },
+        promotions: { select: { id: true } },
       };
 
       if (name !== undefined) {
@@ -567,7 +577,7 @@ const transactionService = {
         where: { id: transactionId },
         include: {
           user: { select: { utorid: true } },
-          promotion: { select: { id: true } },
+          promotions: { select: { id: true } },
           createdBy: { select: { utorid: true } },
         },
       });
@@ -591,6 +601,12 @@ const transactionService = {
           ? transaction.createdBy.utorid
           : transaction.createdById,
       };
+
+      if (transaction.type === "adjustment") {
+        formattedObject.relatedId = transaction.relatedId;
+      } else if (transaction.type === "purchase") {
+        formattedObject.spent = transaction.spent;
+      }
 
       return { data: formattedObject, error: null };
     } catch (error) {
@@ -668,7 +684,7 @@ const transactionService = {
 
       const include = {
         createdBy: { select: { utorid: true } },
-        promotion: { select: { id: true } },
+        promotions: { select: { id: true } },
       };
 
       const [count, transactions] = await Promise.all([
@@ -724,6 +740,9 @@ const transactionService = {
     try {
       let transaction = await prisma.transaction.findUnique({
         where: { id: transactionId },
+        include: {
+          createdBy: { select: { utorid: true } },
+        },
       });
 
       if (!transaction) {
@@ -738,6 +757,9 @@ const transactionService = {
         transaction = await prisma.transaction.update({
           where: { id: transactionId },
           data: { suspicious: false },
+          include: {
+            createdBy: { select: { utorid: true } },
+          },
         });
 
         await prisma.user.update({
@@ -748,6 +770,9 @@ const transactionService = {
         transaction = await prisma.transaction.update({
           where: { id: transactionId },
           data: { suspicious: true },
+          include: {
+            createdBy: { select: { utorid: true } },
+          },
         });
 
         await prisma.user.update({
@@ -768,7 +793,7 @@ const transactionService = {
         promotionIds,
         suspicious: transaction.suspicious,
         remark: transaction.remark,
-        createdBy: transaction.createdById,
+        createdBy: transaction.createdBy.utorid,
       };
 
       return { data: formattedObject, error: null };

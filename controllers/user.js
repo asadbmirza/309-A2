@@ -428,7 +428,7 @@ const createUserTransaction = async (req, res) => {
 
     const { data, error } = await transactionService.createTransferTransaction({
       senderUtorid,
-      recipientId,
+      recipientId: Number(recipientId),
       amt,
       remark,
     });

@@ -10,12 +10,19 @@ const createTransaction = async (req, res) => {
     } = validateService.validateObjHasCorrectKeysAndType(req.body, {
       utorid: "string",
       type: "string",
+      spent: "number",
+      amount: "number",
+      relatedId: "number",
       promotionIds: "object",
       remark: "string",
     });
 
     if (!valid) {
       return res.status(400).json({ error: message });
+    }
+
+    if (!parsedData.utorid || !parsedData.type) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
     const { utorid, type, promotionIds, remark } = parsedData || {};
@@ -67,6 +74,10 @@ const createTransaction = async (req, res) => {
         });
 
       if (error) {
+        const msg = error.message;
+        if (msg === "Related transaction not found" || msg === "User not found") {
+          return res.status(404).json({ error: msg });
+        }
         return res.status(400).json({ error: error.message });
       }
 
@@ -287,6 +298,10 @@ const markTransactionSuspicious = async (req, res) => {
 
     if (isNaN(parseInt(transactionId))) {
       return res.status(400).json({ error: "Invalid transactionId" });
+    }
+
+    if (!parsedData || parsedData.suspicious == undefined) {
+      return res.status(400).json({ error: "Suspicious field is required" });
     }
 
     if (!valid) {
