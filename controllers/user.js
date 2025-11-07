@@ -419,6 +419,7 @@ const createUserTransaction = async (req, res) => {
 
     let recipientId = req.params.userId;
     if (recipientId === undefined) {
+      console.log("Recipient userId is undefined in req.params");
       return res
         .status(400)
         .json({ error: "Recipient userId is required in the path" });
@@ -439,11 +440,13 @@ const createUserTransaction = async (req, res) => {
         return res.status(403).json({ message: "Forbidden" });
       }
       if (msg === "Insufficient points") {
+        console.log("Insufficient points for transfer");
         return res.status(400).json({ message: msg });
       }
       if (msg === "Recipient not found" || msg === "Sender not found") {
         return res.status(404).json({ message: msg });
       }
+      console.log("Error in createTransferTransaction:", msg);
       return res.status(400).json({ message: msg });
     }
 
@@ -497,7 +500,7 @@ const createUserRedemption = async (req, res) => {
       return res.status(400).json({ message: msg });
     }
 
-    return res.status(200).json(data);
+    return res.status(201).json(data);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

@@ -30,6 +30,7 @@ const transactionService = {
 
       // base points: 1 point per $0.25 spent i.e. 4 points per dollar
       let pointPromotionRateIncrease = 0;
+      let addedPoints = 0;
       const usedPromotions = [];
 
       // validate promotions
@@ -87,6 +88,7 @@ const transactionService = {
         }
 
         pointPromotionRateIncrease += promotion.rate * 100;
+        addedPoints += promotion.points;
         usedPromotions.push(pid);
       }
 
@@ -102,18 +104,18 @@ const transactionService = {
       for (const promo of automaticPromotions) {
         usedPromotions.push(promo.id);
         pointPromotionRateIncrease += promo.rate * 100;
+        addedPoints += promo.points;
       }
 
-      let earnedPoints = Math.round(spent * (4 + pointPromotionRateIncrease));
+      let earnedPoints =
+        Math.round(spent * (4 + pointPromotionRateIncrease)) + addedPoints;
 
-      if (cashierUser.suspicious) {
-        earnedPoints = 0;
+      if (!cashierUser.suspicious) {
+        await prisma.user.update({
+          where: { utorid: customer.utorid },
+          data: { points: { increment: earnedPoints } },
+        });
       }
-
-      await prisma.user.update({
-        where: { utorid: customer.utorid },
-        data: { points: { increment: earnedPoints } },
-      });
 
       const purchase = await prisma.transaction.create({
         data: {
@@ -121,11 +123,9 @@ const transactionService = {
           spent,
           amount: earnedPoints,
           remark: description || null,
+          suspicious: cashierUser.suspicious,
           createdById: cashier,
           userId: customer.id,
-          promotions: {
-            connect: usedPromotions.map((id) => ({ id })),
-          },
           processed: true,
         },
         include: {
@@ -138,7 +138,7 @@ const transactionService = {
         utorid: customer.utorid,
         type: purchase.type,
         spent: purchase.spent,
-        earned: purchase.amount,
+        earned: purchase.suspicious ? 0 : purchase.amount,
         remark: purchase.remark || "",
         promotionIds: usedPromotions,
         createdBy: purchase.createdBy.utorid,
@@ -179,7 +179,7 @@ const transactionService = {
 
       const now = new Date();
       const usedPromotions = [];
-      const oneTimeToConnect = [];
+      let addedPoints = 0;
 
       // validate provided promotions (if any)
       for (const pidRaw of promotionIds || []) {
@@ -214,12 +214,28 @@ const transactionService = {
                 `Promotion with id ${pid} has already been used`
               ),
             };
+          } else {
+            await prisma.user.update({
+              where: { id: customer.id },
+              data: {
+                promotions: {
+                  connect: { id: pid },
+                },
+              },
+            });
           }
-          oneTimeToConnect.push(pid);
+          addedPoints += promo.points;
+        } else if (promo.type === "automatic") {
+          addedPoints += Math.round(promo.rate * relatedTx.spent * 100);
         }
 
         usedPromotions.push(pid);
       }
+
+      await prisma.user.update({
+        where: { utorid: customer.utorid },
+        data: { points: { increment: addedPoints } },
+      });
 
       const createOp = prisma.transaction.create({
         data: {
@@ -228,9 +244,6 @@ const transactionService = {
           remark: description || null,
           createdById: cashier,
           userId: customer.id,
-          promotions: usedPromotions.length
-            ? { connect: usedPromotions.map((id) => ({ id })) }
-            : undefined,
           processed: true,
           relatedId: Number(relatedId),
         },
@@ -245,25 +258,11 @@ const transactionService = {
         data: { points: { increment: Number(amount) } },
       });
 
-      const connectOneTimeOp = oneTimeToConnect.length
-        ? prisma.user.update({
-            where: { id: customer.id },
-            data: {
-              promotions: { connect: oneTimeToConnect.map((id) => ({ id })) },
-            },
-          })
-        : null;
-
-      const ops = connectOneTimeOp
-        ? [createOp, updatePointsOp, connectOneTimeOp]
-        : [createOp, updatePointsOp];
+      const ops = [createOp, updatePointsOp];
 
       const results = await prisma.$transaction(ops);
       const created = results[0];
 
-      const promotionIdsOut = Array.isArray(created.promotion)
-        ? created.promotion.map((p) => p.id)
-        : [];
       const formattedObject = {
         id: created.id,
         utorid: customer.utorid,
@@ -271,7 +270,7 @@ const transactionService = {
         type: created.type,
         relatedId: Number(relatedId),
         remark: created.remark || "",
-        promotionIds: promotionIdsOut,
+        promotionIds: usedPromotions,
         createdBy: created.createdBy
           ? created.createdBy.utorid
           : created.createdById,
@@ -307,7 +306,7 @@ const transactionService = {
         return { data: null, error: new Error("Recipient not found") };
       }
 
-      if ((sender.points || 0) < amt) {
+      if (sender.points < amt) {
         return { data: null, error: new Error("Insufficient points") };
       }
 
@@ -801,10 +800,13 @@ const transactionService = {
       return { data: null, error: error };
     }
   },
-  updateTransactionProcessed: async (transactionId, processedById) => {
+  updateTransactionProcessed: async (transactionId, processedByUtorid) => {
     try {
       const transaction = await prisma.transaction.findUnique({
         where: { id: transactionId },
+        include: {
+          createdBy: { select: { utorid: true } },
+        },
       });
 
       if (!transaction) {
@@ -840,13 +842,13 @@ const transactionService = {
         : [];
       const formattedObject = {
         id: transaction.id,
-        utorid: transaction.userId,
+        utorid: transaction.createdBy.utorid,
         type: transaction.type,
-        processedBy: processedById,
+        processedBy: processedByUtorid,
         redeemed: transaction.amount,
         remark: transaction.remark,
         promotionIds: promotionIds2,
-        createdBy: transaction.createdById,
+        createdBy: transaction.createdBy.utorid,
       };
 
       return { data: formattedObject, error: null };

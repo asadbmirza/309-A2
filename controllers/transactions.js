@@ -78,6 +78,7 @@ const createTransaction = async (req, res) => {
         if (msg === "Related transaction not found" || msg === "User not found") {
           return res.status(404).json({ error: msg });
         }
+        console.log(error)
         return res.status(400).json({ error: error.message });
       }
 
@@ -339,7 +340,7 @@ const markTransactionProcessed = async (req, res) => {
 
     const { data, error } = await transactionService.updateTransactionProcessed(
       parseInt(transactionId),
-      req.userId
+      req.utorid
     );
 
     if (error) {

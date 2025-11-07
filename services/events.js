@@ -295,6 +295,15 @@ class EventService {
             }
         });
 
+        await prisma.user.update({
+            where: { id: parseInt(userId) },
+            data: {
+                points: { 
+                    increment: amount 
+                }
+            }
+        });
+
         return transaction;
     }
 
