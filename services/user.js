@@ -189,7 +189,7 @@ const userService = {
     if (name !== undefined) updateFields.name = name;
     if (email !== undefined) updateFields.email = email;
     if (birthday !== undefined) {
-      updateFields.birthday = new Date(birthday);
+      updateFields.birthday = new Date(birthday + "T00:00:00");
     }
     if (avatarUrl !== undefined) updateFields.avatarUrl = avatarUrl;
 

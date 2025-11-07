@@ -1,0 +1,43 @@
+Asad Mirza, Moiz Mohammad, Mohammad Ibrahim, we split up the tasks as following.
+
+=================================================================
+Asad: Authentication & Users
+=================================================================
+Focus: Core user system, JWT auth, and account management
+
+APIs / Modules:
+- /auth/tokens
+- /auth/resets
+- /auth/resets/:resetToken
+- /users
+- /users/:userId
+- /users/me
+- /users/me/password
+- Handle JWT middleware & role-based access
+
+=================================================================
+Mohammad: Transactions & Points Logic
+=================================================================
+Focus: All transaction types and points accounting
+
+APIs / Modules:
+- Purchase, adjustment, transfer, redemption
+- /transactions/*
+- /users/:userId/transactions
+- /users/me/transactions
+- Points updating, suspicious flag logic
+
+=================================================================
+Moiz: Events & Promotions
+=================================================================
+Focus: Event + promotion management and linking to transactions
+
+
+APIs / Modules:
+- /events
+- /events/:id
+- /events/:id/organizers
+- /events/:id/guests
+- /events/:id/transactions
+- /promotions
+- /promotions/:id
