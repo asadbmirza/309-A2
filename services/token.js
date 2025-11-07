@@ -50,10 +50,15 @@ const tokenService = {
     if (!isPasswordValid) {
       return null;
     }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
     return user;
   },
 
-  findTokenByUtorid: async (utorid) => {
+  findTokenByUtorid: async (utorid, token) => {
     const user = await prisma.user.findUnique({
       where: { utorid },
       select: { id: true },
@@ -61,16 +66,29 @@ const tokenService = {
     if (!user) {
       return null;
     }
-    const token = await prisma.resetToken.findFirst({
-      where: { userId: user.id },
+
+    const where = { userId: user.id };
+    if (typeof token === "string") where.token = token;
+    return await prisma.resetToken.findFirst({
+      where,
       orderBy: { expiresAt: "desc" },
       take: 1,
     });
-    return token;
+  },
+  findTokenByToken: async (token) => {
+    return await prisma.resetToken.findUnique({
+      where: { token },
+    });
   },
   deleteResetToken: async (id) => {
     const result = await prisma.resetToken.deleteMany({
       where: { id },
+    });
+    return result;
+  },
+  deleteExistingResetTokensForUser: async (userId) => {
+    const result = await prisma.resetToken.deleteMany({
+      where: { userId },
     });
     return result;
   },

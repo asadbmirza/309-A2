@@ -93,7 +93,7 @@ const userService = {
     });
   },
 
-  managerFindUserById: async (id) => {
+  fullClearanceFindUserById: async (id) => {
     return prisma.user.findUnique({
       where: { id },
       select: {
@@ -154,7 +154,7 @@ const userService = {
       take: limit,
     });
 
-    const total = users?.length || 0;
+    const total = await prisma.user.count({ where });
 
     return {
       users,
@@ -175,7 +175,7 @@ const userService = {
       where: { id },
       data: updateFields,
     });
-    const ret = { id: user.id, utorid: user.utorid };
+    const ret = { id: user.id, utorid: user.utorid, name: user.name };
     if (email !== undefined) ret.email = user.email;
     if (verified !== undefined) ret.verified = user.verified;
     if (suspicious !== undefined) ret.suspicious = user.suspicious;

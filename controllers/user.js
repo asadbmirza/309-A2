@@ -3,7 +3,6 @@ const { tokenService } = require("../services/token");
 const { validateService } = require("../services/validate_service");
 const { roleHasClearance } = require("../constants");
 const { RoleType } = require("@prisma/client");
-const { ROLES } = require("../constants");
 
 const registerUser = async (req, res) => {
   const { utorid, name, email } = req.body;
@@ -73,11 +72,15 @@ const getUsers = async (req, res) => {
         activated = activated === "true";
       }
     }
-
     page = parseInt(page);
     limit = parseInt(limit);
-    if (isNaN(page) || page < 1) page = 1;
-    if (isNaN(limit) || limit < 1) limit = 10;
+    if (isNaN(page)) page = 1;
+    if (isNaN(limit)) limit = 10;
+    if (page < 1 || limit < 1) {
+      return res
+        .status(400)
+        .json({ message: "Page and limit must be positive integers" });
+    }
     const result = await userService.getUsers({
       name,
       role,
@@ -105,7 +108,7 @@ const getUserById = async (req, res) => {
       }
       return res.status(200).json(user);
     } else if (roleHasClearance(role, RoleType.manager)) {
-      const user = await userService.managerFindUserById(parseInt(id));
+      const user = await userService.fullClearanceFindUserById(parseInt(id));
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -133,10 +136,14 @@ const updateUserStatusFields = async (req, res) => {
       "role",
     ]);
   if (!validObjKeys) return res.status(400).json({ message: objKeysMessage });
-
+  if (Object.keys(req.body).length === 0) {
+    return res
+      .status(400)
+      .json({ message: "At least one field must be provided for update" });
+  }
   let updatedEmail, updatedVerified, updatedSuspicious, updatedRole;
 
-  if (newEmail !== undefined) {
+  if (newEmail !== undefined && newEmail !== null) {
     const {
       valid: validEmail,
       message: emailMessage,
@@ -146,7 +153,7 @@ const updateUserStatusFields = async (req, res) => {
     updatedEmail = validatedEmail;
   }
 
-  if (newVerified !== undefined) {
+  if (newVerified !== undefined && newVerified !== null) {
     const {
       valid: validVerified,
       message: verifiedMessage,
@@ -157,7 +164,7 @@ const updateUserStatusFields = async (req, res) => {
     updatedVerified = validatedVerified;
   }
 
-  if (newSuspicious !== undefined) {
+  if (newSuspicious !== undefined && newSuspicious !== null) {
     const {
       valid: validSuspicious,
       message: suspiciousMessage,
@@ -168,7 +175,7 @@ const updateUserStatusFields = async (req, res) => {
     updatedSuspicious = validatedSuspicious;
   }
 
-  if (newRole !== undefined) {
+  if (newRole !== undefined && newRole !== null) {
     const {
       valid: validRole,
       message: roleMessage,
@@ -183,7 +190,7 @@ const updateUserStatusFields = async (req, res) => {
   const authRole = req?.auth?.role ? req.auth.role : RoleType.manager;
 
   try {
-    const user = await userService.managerFindUserById(id);
+    const user = await userService.fullClearanceFindUserById(id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -199,7 +206,7 @@ const updateUserStatusFields = async (req, res) => {
         updatedRole === RoleType.manager ||
         updatedRole === RoleType.superuser
       ) {
-        return res.status(400).json({
+        return res.status(403).json({
           message:
             "Invalid role. Managers can only assign roles 'cashier' or 'regular'.",
         });
@@ -242,19 +249,23 @@ const updateUserStatusFields = async (req, res) => {
 const updatePersonalProfile = async (req, res) => {
   const userId = req.userId;
   const { name: newName, email: newEmail, birthday: newBirthday } = req.body;
+  console.log("req.body:", req.body);
   const updatedAvatar = req.file ? `/uploads/${req.file.filename}` : undefined;
+  console.log("Received avatar file:", req.file);
 
   const { valid: validObjKeys, message: objKeysMessage } =
     validateService.validateObjHasCorrectKeys(req.body, [
       "name",
       "email",
       "birthday",
+      "avatar",
     ]);
-  if (!validObjKeys) return res.status(400).json({ message: objKeysMessage });
+  if (!validObjKeys || (Object.keys(req.body).length === 0 && !updatedAvatar))
+    return res.status(400).json({ message: objKeysMessage });
 
   let updatedName, updatedEmail, updatedBirthday;
 
-  if (newName !== undefined) {
+  if (newName !== undefined && newName !== null) {
     const {
       valid: validName,
       message: nameMessage,
@@ -264,7 +275,7 @@ const updatePersonalProfile = async (req, res) => {
     updatedName = validatedName;
   }
 
-  if (newEmail !== undefined) {
+  if (newEmail !== undefined && newEmail !== null) {
     const {
       valid: validEmail,
       message: emailMessage,
@@ -274,7 +285,7 @@ const updatePersonalProfile = async (req, res) => {
     updatedEmail = validatedEmail;
   }
 
-  if (newBirthday !== undefined) {
+  if (newBirthday !== undefined && newBirthday !== null) {
     const {
       valid: validBirthday,
       message: birthdayMessage,
@@ -286,7 +297,7 @@ const updatePersonalProfile = async (req, res) => {
   }
 
   try {
-    if (updatedEmail !== undefined) {
+    if (updatedEmail !== undefined && updatedEmail !== null) {
       const existingUser = await userService.findUserByEmail(updatedEmail);
       if (existingUser && existingUser.id !== userId) {
         return res.status(409).json({ message: "Email already in use" });
@@ -319,9 +330,13 @@ const updatePersonalPassword = async (req, res) => {
 
   const utorid = req.utorid;
   const { old: oldPassword, new: potentialPassword } = req.body;
-  const { valid: validPassword, message: passwordMessage, password: newPassword } =
-    validateService.validatePassword(potentialPassword);
-  if (!validPassword) return res.status(400).json({ message: passwordMessage });
+  const {
+    valid: validPassword,
+    message: passwordMessage,
+    password: newPassword,
+  } = validateService.validatePassword(potentialPassword);
+  if (!validPassword || typeof oldPassword !== "string")
+    return res.status(400).json({ message: passwordMessage });
 
   try {
     const verifyPassword = await userService.verifyUserPassword(
@@ -333,14 +348,26 @@ const updatePersonalPassword = async (req, res) => {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    await userService.updateUserPassword(
-      utorid,
-      newPassword
-    );
+    await userService.updateUserPassword(utorid, newPassword);
 
     return res.status(200).json({ message: "Password updated successfully" });
   } catch (error) {
     console.error("Error updating password:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+const getPersonalProfile = async (req, res) => {
+  const userId = req.userId;
+
+  try {
+    const userProfile = await userService.fullClearanceFindUserById(userId);
+    if (!userProfile) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    return res.status(200).json(userProfile);
+  } catch (error) {
+    console.error("Error fetching personal profile:", error);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
@@ -352,4 +379,5 @@ module.exports = {
   updateUserStatusFields,
   updatePersonalProfile,
   updatePersonalPassword,
+  getPersonalProfile,
 };

@@ -40,16 +40,6 @@ const authenticateUser = async (req, res) => {
 const requests = new Map();
 
 const initiatePasswordReset = async (req, res) => {
-  const ip = req.ip;
-  const now = Date.now();
-  const last = requests.get(ip);
-  if (last && now - last < 60000) {
-    return res
-      .status(429)
-      .json({ message: "Too many requests. Please try again later." });
-  }
-  requests.set(ip, now);
-
   const { utorid } = req.body;
   const requiredKeys = ["utorid"];
   const requiredValidation = validateService.validateObjHasRequiredKeys(
@@ -73,8 +63,19 @@ const initiatePasswordReset = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+    const ip = req.ip;
+    const now = Date.now();
+    const last = requests.get(ip);
+
+    if (last && now - last < 60000) {
+      return res
+        .status(429)
+        .json({ message: "Too many requests. Please try again later." });
+    }
+    await tokenService.deleteExistingResetTokensForUser(user.id);
+    requests.set(ip, now);
     const { token, expiresAt } = await tokenService.generateResetToken(user.id);
-    return res.status(200).json({ resetToken: token, expiresAt });
+    return res.status(202).json({ resetToken: token, expiresAt });
   } catch (error) {
     console.error("Error initiating password reset:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -114,16 +115,23 @@ const resetPassword = async (req, res) => {
     return res.status(400).json({ message: utoridMessage });
   }
 
+  
+
   try {
-    const token = await tokenService.findTokenByUtorid(utorid);
-    if (!token || token.token !== resetToken) {
+    const exactToken = await tokenService.findTokenByToken(resetToken);
+    if (!exactToken) {
       return res.status(404).json({ message: "Invalid or non-existent token" });
     }
-    if (new Date() > token.expiresAt) {
+    const { id: user_id } = await userService.findUserByUtorid(utorid);
+    if (exactToken.userId !== user_id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (new Date() > new Date(exactToken.expiresAt)) {
       return res.status(410).json({ message: "Reset token has expired" });
     }
     await userService.updateUserPassword(utorid, password);
-    await tokenService.deleteResetToken(token.id);
+    await tokenService.deleteResetToken(exactToken.id);
     return res.status(200).json({ message: "Password reset successful" });
   } catch (error) {
     console.error("Error resetting password:", error);

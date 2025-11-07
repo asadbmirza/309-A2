@@ -26,11 +26,16 @@ userRouter.patch(
   upload.single("avatar"),
   userController.updatePersonalProfile
 );
+userRouter.get(
+  "/me",
+  verifyUserRole(RoleType.regular),
+  userController.getPersonalProfile
+);
 userRouter.patch(
   "/me/password",
   verifyUserRole(RoleType.regular),
   userController.updatePersonalPassword
-)
+);
 userRouter.get(
   "/:id",
   verifyUserRole(RoleType.cashier),
