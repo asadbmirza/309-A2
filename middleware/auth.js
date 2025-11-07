@@ -36,7 +36,6 @@ const verifyUserRole = (requiredRole) => {
     if (roleHasClearance(userRole, requiredRole)) {
       next();
     } else {
-      console.log(`User role ${userRole} does not have clearance for required role ${requiredRole}`);
       res.sendStatus(403);
     }
   };

@@ -13,6 +13,10 @@ class EventController {
             const start = new Date(startTime);
             const end = new Date(endTime);
             const now = new Date();
+
+            if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+                return res.status(400).json({ message: "Invalid date format" });
+            }
             if (start < now || end < now) {
                 return res.status(400).json({ message: "Event times must be in the future" });
             }
@@ -68,6 +72,13 @@ class EventController {
 
             if (started !== undefined && ended !== undefined) {
                 return res.status(400).json({ message: "Cannot filter by both started and ended" });
+            }
+
+            if (req.query.page !== undefined && req.query.page <= 0) {
+                return res.status(400).json({ message: "Invalid page number" });
+            }
+            if (req.query.limit !== undefined && req.query.limit <= 0) {
+                return res.status(400).json({ message: "Invalid limit number" });
             }
 
             const { count, events } = await eventService.getEvents(req.query, userRole);
@@ -178,21 +189,21 @@ class EventController {
 
             const now = new Date();
 
-            if (updates.points !== undefined) {
+            if (updates.points !== undefined && updates.points !== null) {
                 const isManager = ['manager', 'superuser'].includes(userRole);
                 if (!isManager) {
                     return res.status(403).json({ message: "Only managers can update points" });
                 }
-                if (!Number.isInteger(udpates.points) || udpates.points <= 0) {
+                if (!Number.isInteger(updates.points) || updates.points <= 0) {
                     return res.status(400).json({ message: "Points must be a positive integer" });
                 }
-                const pointsDiff = udpates.points - event.points;
+                const pointsDiff = updates.points - event.points;
                 if (event.pointsRemain + pointsDiff < 0) {
                     return res.status(400).json({ message: "Insufficient remaining points for this update" });
                 }
             }
 
-            if (updates.published !== undefined) {
+            if (updates.published !== undefined && updates.published !== null) {
                 const isManager = ['manager', 'superuser'].includes(userRole);
                 if (!isManager) {
                     return res.status(403).json({ message: "Only managers can update published status" });
@@ -205,6 +216,9 @@ class EventController {
             const newStartTime = updates.startTime ? new Date(updates.startTime) : event.startTime;
             const newEndTime = updates.endTime ? new Date(updates.endTime) : event.endTime;
 
+            if (isNaN(newStartTime.getTime()) || isNaN(newEndTime.getTime())) {
+                return res.status(400).json({ message: "Invalid date format" });
+            }
             if (newStartTime < now || newEndTime < now) {
                 return res.status(400).json({ message: "Event times must be in the future" });
             }
@@ -396,7 +410,7 @@ class EventController {
 
             const isOrganizer = userId && await eventService.isEventOrganizer(eventId, userId);
             if (isOrganizer && !event.published) {
-                return res.status(403).json({ message: "Access denied" });
+                return res.status(404).json({ message: "Event not found" });
             }
             if (event.endTime < new Date()) {
                 return res.status(410).json({ message: "Cannot add guests to an event that has already ended" });
@@ -580,7 +594,7 @@ class EventController {
             if (utorid) {
                 const recipient = event.guests.find(guest => guest.user.utorid === utorid);
                 if (!recipient) {
-                    return res.status(404).json({ message: "User is not a guest of the event" });
+                    return res.status(400).json({ message: "User is not a guest of the event" });
                 }
                 if (event.pointsRemain < amount) {
                     return res.status(400).json({ message: "Insufficient event points remaining" });

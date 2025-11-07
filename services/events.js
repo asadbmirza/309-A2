@@ -75,9 +75,10 @@ class EventService {
         } else if (ended === 'false') {
             where.endTime = { gt: now };
         }
-
-        const skip = (parseInt(page) - 1) * parseInt(limit);
-        const take = parseInt(limit);
+        const pageNum = Math.max(1, parseInt(page) || 1);
+        const limitNum = Math.max(1, parseInt(limit) || 10);
+        const skip = (pageNum - 1) * limitNum;
+        const take = limitNum;
 
         const [count, events] = await Promise.all([
             prisma.event.count({ where }),
@@ -137,7 +138,7 @@ class EventService {
     async updateEvent(eventId, updates, currentEvent) {
         const updateData = {};
 
-        if (updates.points !== undefined) {
+        if (updates.points !== undefined && updates.points !== null) {
             const pointsDiff = updates.points - currentEvent.points;
             updateData.points = updates.points;
             updateData.pointsRemain = currentEvent.pointsRemain + pointsDiff;
@@ -148,8 +149,8 @@ class EventService {
         if (updates.location) updateData.location = updates.location;
         if (updates.startTime) updateData.startTime = new Date(updates.startTime);
         if (updates.endTime) updateData.endTime = new Date(updates.endTime);
-        if (updates.capacity !== undefined) updateData.capacity = updates.capacity;
-        if (updates.published !== undefined) updateData.published = updates.published;
+        if (updates.capacity !== undefined && updates.capacity !== null) updateData.capacity = updates.capacity;
+        if (updates.published !== undefined && updates.published !== null) updateData.published = updates.published;
 
         const updatedEvent = await prisma.event.update({
             where: { id: parseInt(eventId) },
@@ -160,6 +161,12 @@ class EventService {
     }
 
     async deleteEvent(eventId) {
+        await prisma.eventOrganizer.deleteMany({
+            where: { eventId: parseInt(eventId) },
+        });
+        await prisma.eventGuest.deleteMany({
+            where: { eventId: parseInt(eventId) },
+        });
         await prisma.event.delete({
             where: { id: parseInt(eventId) },
         });

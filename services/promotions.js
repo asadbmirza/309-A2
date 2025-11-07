@@ -65,9 +65,10 @@ class PromotionService {
                 where.endTime = { gte: now };
             }
         }
-
-        const skip = (parseInt(page) - 1) * parseInt(limit);
-        const take = parseInt(limit);
+        const pageNum = Math.max(1, parseInt(page) || 1);
+        const limitNum = Math.max(1, parseInt(limit) || 10);
+        const skip = (pageNum - 1) * limitNum;
+        const take = limitNum;
 
         const [count, promotions] = await Promise.all([
             prisma.promotion.count({ where }),

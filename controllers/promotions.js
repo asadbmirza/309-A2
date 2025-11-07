@@ -16,7 +16,9 @@ class PromotionController {
             const start = new Date(startTime);
             const end = new Date(endTime);
             const now = new Date();
-
+            if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+                return res.status(400).json({ message: "Invalid date format" });
+            }
             if (start < now) {
                 return res.status(400).json({ message: "Start time must be in the future" });
             }
@@ -71,6 +73,12 @@ class PromotionController {
 
             if (started !== undefined && ended !== undefined) {
                 return res.status(400).json({ message: "Cannot filter by both started and ended" });
+            }
+            if (req.query.page !== undefined && req.query.page <= 0) {
+                return res.status(400).json({ message: "Invalid page number" });
+            }
+            if (req.query.limit !== undefined && req.query.limit <= 0) {
+                return res.status(400).json({ message: "Invalid limit number" });
             }
 
             const { count, promotions } = await PromotionService.getPromotions(req.query, userRole, userId);
@@ -164,6 +172,9 @@ class PromotionController {
             const now = new Date();
             const newStartTime = updates.startTime ? new Date(updates.startTime) : promotion.startTime;
             const newEndTime = updates.endTime ? new Date(updates.endTime) : promotion.endTime;
+            if (isNaN(newStartTime.getTime()) || isNaN(newEndTime.getTime())) {
+                return res.status(400).json({ message: "Invalid date format" });
+            }
             if (newStartTime < now || newEndTime < now) {
                 return res.status(400).json({ message: "Start and end times must be in the future" });
             }
